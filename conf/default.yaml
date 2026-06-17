@@ -1,0 +1,53 @@
+schema_version: 1
+project: canaryweave-fides
+profile: vigil_style_pre_context_gate
+summary: >-
+  Default public-safe configuration for the CanaryWeave FIDES harness.
+  This file defines structure and defaults only; it does not enable raw dataset
+  loading or provider calls.
+
+safety:
+  public_artifacts_only: true
+  raw_payloads_allowed_in_repo: false
+  raw_prompts_allowed_in_repo: false
+  provider_calls_enabled_by_default: false
+  public_reports_include:
+    - aggregate_metrics
+    - opaque_case_ids
+    - rule_ids
+    - reason_codes
+    - structural_feature_counts
+  public_reports_exclude:
+    - raw_dataset_payloads
+    - raw_prompt_text
+    - judge_transcripts
+    - raw_to_case_mappings
+
+paths:
+  rules_dir: rules
+  datasets_config: conf/datasets.yaml
+  stacks_config: conf/stacks.yaml
+  evals_dir: data/evals
+  generated_artifacts_dir: artifacts
+  public_artifact_roots:
+    - conf
+    - data
+    - docs
+    - rules
+    - scripts
+    - tests
+
+run_defaults:
+  eval_config: data/evals/smoke.yaml
+  iterations: 1
+  seed: 1337
+  fail_on_missing_required_dataset: true
+  skip_missing_optional_datasets: true
+  output_format: public_safe_json
+
+private_data:
+  raw_dataset_roots_are_repo_artifacts: false
+  raw_to_case_manifest_is_public: false
+  local_path_env_vars:
+    asb: CANARYWEAVE_ASB_ROOT
+    agentdefensebench: CANARYWEAVE_AGENTDEFENSEBENCH_ROOT

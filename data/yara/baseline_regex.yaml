@@ -1,0 +1,44 @@
+schema_version: 1
+ruleset_id: baseline_regex
+version: 0.1.0
+purpose: >-
+  Public-safe regex baseline manifest for comparison against YARA-style and
+  structured policy rules. Patterns operate only on redacted text features and
+  safe structural markers.
+
+safety:
+  no_raw_payload_signatures: true
+  no_dataset_specific_payload_strings: true
+  inspect_raw_prompts: false
+  inspect_redacted_features_only: true
+
+baseline_patterns:
+  - id: regex.hidden_structure_marker
+    description: Detects precomputed hidden-structure feature flags.
+    feature: hidden_structure_present
+    match_when: true
+    action: quarantine
+    reason_code: hidden_structure_marker
+
+  - id: regex.canary_marker_flag
+    description: Detects precomputed canary-bearing feature flags.
+    feature: canary_bearing
+    match_when: true
+    action: quarantine
+    reason_code: canary_marker_flag
+
+  - id: regex.instruction_shape_flag
+    description: Detects precomputed instruction-shaped feature flags.
+    feature: instruction_shaped
+    match_when: true
+    action: quarantine
+    reason_code: instruction_shape_marker
+
+metrics_role:
+  compare_against:
+    - yara_rules
+    - rules_plus_fides
+  expected_limitations:
+    - No reasoning over origin trust.
+    - No capability or sink policy evaluation.
+    - No cross-event flow reasoning.

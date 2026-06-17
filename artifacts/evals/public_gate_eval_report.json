@@ -1,0 +1,146 @@
+{
+  "groups": {
+    "by_category": {
+      "benign_control": {
+        "blocked_or_quarantined": 0,
+        "total": 2
+      },
+      "hidden_unicode": {
+        "blocked_or_quarantined": 2,
+        "total": 2
+      },
+      "origin_authority_confusion": {
+        "blocked_or_quarantined": 2,
+        "total": 2
+      },
+      "unauthorized_data_flow": {
+        "blocked_or_quarantined": 2,
+        "total": 2
+      }
+    },
+    "by_dataset": {
+      "synthetic": {
+        "blocked_or_quarantined": 6,
+        "total": 8
+      }
+    },
+    "by_surface": {
+      "mcp_resource": {
+        "blocked_or_quarantined": 2,
+        "total": 2
+      },
+      "mcp_tool": {
+        "blocked_or_quarantined": 2,
+        "total": 2
+      },
+      "prompt": {
+        "blocked_or_quarantined": 0,
+        "total": 2
+      },
+      "tool_result": {
+        "blocked_or_quarantined": 2,
+        "total": 2
+      }
+    }
+  },
+  "incremental_metrics": {
+    "fides_incremental_catches_vs_warden": 0,
+    "warden_incremental_catches_vs_regex": 2
+  },
+  "iterations": 2,
+  "maintainability_metrics": {
+    "dataset_rule_coverage": {
+      "synthetic": [
+        "warden.canary_sink_violation",
+        "warden.capability_not_allowed",
+        "warden.hidden_instruction_shape",
+        "warden.untrusted_tool_plan"
+      ]
+    },
+    "rule_count": 4,
+    "rule_engine_codename": "WARDEN",
+    "unique_rule_ids": [
+      "warden.canary_sink_violation",
+      "warden.capability_not_allowed",
+      "warden.hidden_instruction_shape",
+      "warden.untrusted_tool_plan"
+    ]
+  },
+  "provider_calls": 0,
+  "safety": {
+    "case_level_rows_included": false,
+    "judge_transcripts_included": false,
+    "public_safe": true,
+    "source_material_included": false
+  },
+  "schema_version": "canaryweave_fides.public_report.v1",
+  "security_metrics": {
+    "no_guard": {
+      "asr": 1.0,
+      "asr_reduction_vs_no_guard": 0.0,
+      "asr_reduction_vs_regex": -0.6667,
+      "attack_cases": 6,
+      "benign_cases": 2,
+      "benign_refusal_rate": 0.0,
+      "f1": 0.0,
+      "fn": 6,
+      "fp": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "safe_pass_through_rate": 1.0,
+      "tn": 2,
+      "tp": 0
+    },
+    "regex_baseline": {
+      "asr": 0.3333,
+      "asr_reduction_vs_no_guard": 0.6667,
+      "asr_reduction_vs_regex": 0.0,
+      "attack_cases": 6,
+      "benign_cases": 2,
+      "benign_refusal_rate": 0.0,
+      "f1": 0.8,
+      "fn": 2,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 0.6667,
+      "safe_pass_through_rate": 1.0,
+      "tn": 2,
+      "tp": 4
+    },
+    "rules_plus_fides": {
+      "asr": 0.0,
+      "asr_reduction_vs_no_guard": 1.0,
+      "asr_reduction_vs_regex": 0.3333,
+      "attack_cases": 6,
+      "benign_cases": 2,
+      "benign_refusal_rate": 0.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "safe_pass_through_rate": 1.0,
+      "tn": 2,
+      "tp": 6
+    },
+    "yara_rules": {
+      "asr": 0.0,
+      "asr_reduction_vs_no_guard": 1.0,
+      "asr_reduction_vs_regex": 0.3333,
+      "attack_cases": 6,
+      "benign_cases": 2,
+      "benign_refusal_rate": 0.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "safe_pass_through_rate": 1.0,
+      "tn": 2,
+      "tp": 6
+    }
+  },
+  "source_schema_version": "canaryweave_fides.gate_eval.v1",
+  "total_cases": 4,
+  "total_iterations": 8
+}

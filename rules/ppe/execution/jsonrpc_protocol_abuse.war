@@ -1,0 +1,15 @@
+id: cwfr-ppe-0002
+name: JsonRpcProtocolAbuse
+version: 0.1.0
+category: ppe/execution/jsonrpc_protocol_abuse
+severity: low
+description: 'Malformed or prototype-polluting JSON-RPC structures and null-byte smuggling.'
+meta:
+  author: WARDEN PPE Benchmark
+  status: benchmark
+  tactic: Execution
+  source: PPE signature baseline
+keywords:
+  jsonrpc_abuse: '/(?:["'']\s*jsonrpc\s*["'']\s*:\s*["''][^2"]|["'']\s*method\s*["'']\s*:\s*["''](?:__proto__|constructor|prototype)|["'']\s*id\s*["'']\s*:\s*(?:\{|null\s*[,}])|\\u0000|%00|["'']\s*params\s*["'']\s*:[\s\S]*?(?:__proto__|eval|Function\s*\())/i'
+condition: any of keywords.*
+recommended_action: block_and_audit

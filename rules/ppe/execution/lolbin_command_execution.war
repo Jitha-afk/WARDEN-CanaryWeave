@@ -1,0 +1,15 @@
+id: cwfr-ppe-0003
+name: LivingOffTheLandExecution
+version: 0.1.0
+category: ppe/execution/living_off_the_land
+severity: low
+description: 'Living-off-the-land binary invocations used to download or execute payloads.'
+meta:
+  author: WARDEN PPE Benchmark
+  status: benchmark
+  tactic: Execution
+  source: PPE signature baseline
+keywords:
+  lolbin_invocation: '/(?:powershell\s+[^\n]*(?:iex|invoke-expression|downloadstring|downloadfile|webclient|bitstransfer|start-bitstransfer)|certutil\s+[^\n]*-(?:urlcache|decode)|bitsadmin\s+[^\n]*/transfer|mshta\s+(?:vbscript|javascript|http)|regsvr32\s+[^\n]*/[siu][^\n]*(?:http|\\\\)|rundll32\s+[^\n]*(?:javascript|http|shell32)|wmic\s+[^\n]*(?:process\s+call\s+create|os\s+get))/i'
+condition: any of keywords.*
+recommended_action: block_and_audit

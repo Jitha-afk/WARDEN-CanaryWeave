@@ -1,0 +1,41 @@
+schema_version: 1
+stack_order:
+  - no_guard
+  - regex_baseline
+  - yara_rules
+  - rules_plus_fides
+
+stacks:
+  no_guard:
+    enabled: true
+    purpose: Establish the unguarded pre-context baseline.
+    deterministic_rules: false
+    fides_judge: false
+    default_decision: allow
+
+  regex_baseline:
+    enabled: true
+    purpose: Compare against shallow public-safe pattern matching.
+    deterministic_rules: true
+    rule_config: data/yara/baseline_regex.yaml
+    fides_judge: false
+    default_decision: allow
+
+  yara_rules:
+    enabled: true
+    purpose: Evaluate defender-authored YARA-style policy rules.
+    deterministic_rules: true
+    rule_config: data/yara/canaryweave_rules.yaml
+    fides_judge: false
+    default_decision: allow
+
+  rules_plus_fides:
+    enabled: true
+    purpose: Run FIDES only for deterministic misses.
+    deterministic_rules: true
+    rule_config: data/yara/canaryweave_rules.yaml
+    fides_judge: true
+    fides_prompt_contract: data/prompts/fides_judge.yaml
+    provider_calls_enabled: false
+    call_fides_when_deterministic_decision_is: allow
+    default_decision: quarantine_on_uncertain

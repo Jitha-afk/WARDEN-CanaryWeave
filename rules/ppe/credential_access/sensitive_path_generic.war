@@ -1,0 +1,15 @@
+id: cwfr-ppe-0004
+name: SensitiveCredentialPathGeneric
+version: 0.1.0
+category: ppe/credential_access/sensitive_path_generic
+severity: low
+description: 'References to common credential, key, and config file paths across platforms.'
+meta:
+  author: WARDEN PPE Benchmark
+  status: benchmark
+  tactic: Credential Access
+  source: PPE signature baseline
+keywords:
+  sensitive_path: '/(?:~/\.(?:cursor|vscode|ssh|aws|azure|config|gnupg|gitconfig)|/(?:etc/(?:passwd|shadow|hosts)|home/[^/]+/\.(?:ssh|aws|cursor)|mnt/user-data)|\.(?:cursor/mcp\.json|ssh/(?:id_rsa|id_ed25519|authorized_keys|known_hosts|config)|env(?:\.local)?|aws/credentials|azure/config)|mcp\.json|id_rsa(?:\.pub)?|private[_-]?key|\.pem$|\.key$)/i'
+condition: any of keywords.*
+recommended_action: quarantine

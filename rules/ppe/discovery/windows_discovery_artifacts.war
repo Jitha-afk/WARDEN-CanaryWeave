@@ -1,0 +1,16 @@
+id: cwfr-ppe-0013
+name: WindowsDiscoveryArtifacts
+version: 0.1.0
+category: ppe/discovery/windows_artifacts
+severity: medium
+description: 'Access to Windows event logs and configuration-management client artifacts.'
+meta:
+  author: WARDEN PPE Benchmark
+  status: benchmark
+  tactic: Discovery
+  source: PPE signature baseline
+keywords:
+  windows_event_logs: '/\\system32\\config\\(AppEvent\.Evt|SecEvent\.Evt)/i'
+  sccm_client_files: '/\\[Ww]indows\\CCM\\(SCClient\.exe|Logs\\.*\.log)/i'
+condition: any of keywords.*
+recommended_action: audit

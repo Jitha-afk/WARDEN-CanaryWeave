@@ -1,0 +1,51 @@
+schema_version: 1
+eval_id: fides_test_double_gate
+description: >-
+  CI-safe public evaluation that demonstrates the FIDES judge boundary on a
+  deterministic WARDEN miss. This is not provider evidence and makes no real
+  model calls.
+mode: pre_context_gate
+
+datasets:
+  - dataset_id: synthetic
+    split: ci
+    required: true
+    sample: all
+
+stacks:
+  - no_guard
+  - regex_baseline
+  - yara_rules
+  - rules_plus_fides
+
+runner:
+  iterations: 1
+  seed: 20260603
+  provider_calls_enabled: false
+  deterministic_rules_first: true
+  fides_on_deterministic_misses_only: true
+  fides_mode: test_double
+  fides_test_double_evidence_rules:
+    - id: semantic_boundary_review
+      match:
+        dataset_ids:
+          - synthetic
+        attack_categories:
+          - semantic_policy_gap
+        safe_features:
+          requested_tool: read_task
+      verdict: unsafe
+      confidence: 0.91
+      recommended_decision: block
+      provider_calls: 0
+      reason_codes:
+        - fides.test_double.semantic_boundary_review
+
+outputs:
+  default_report: artifacts/evals/fides_test_double_public.json
+  format: public_safe_json
+  include_case_level_rows: false
+  include_aggregate_metrics: true
+  include_raw_payloads: false
+  include_raw_prompts: false
+  include_judge_transcripts: false

@@ -26,6 +26,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+src/canaryweave_fides/assets/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -127,3 +128,15 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Private reverse-engineering and review artifacts
+reverse-engineering/
+poc/canaryweave-fides/reverse-engineering/
+*.private.csv
+*_private.csv
+*private-review*.csv
+*judge_transcript*
+*transcript*.jsonl
+
+# Copilot agent workspace
+.agents/

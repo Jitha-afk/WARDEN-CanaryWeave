@@ -1,0 +1,56 @@
+id: cwfr-0110
+name: DeceptiveSocialEngineeringTasking
+version: 0.1.0
+category: mcp_abuse/recon_social_engineering
+severity: medium
+scope: event_window
+description: Detects untrusted tasking that combines target-oriented social engineering with deceptive intent.
+meta:
+  author: Project Open Hand Monk
+  status: experimental
+  attack_refs:
+    - framework: ATLAS
+      technique_id: AML.T0052
+      tactic: Initial Access
+      mapping_strength: analogical
+  defense_refs:
+    - framework: D3FEND
+      name: User Behavior Analysis
+keywords:
+  - name: social_engineering_shape
+    type: feature
+    feature: social_engineering_shape
+  - name: deception_shape
+    type: feature
+    feature: deception_shape
+semantics:
+  - name: deceptive_targeting_intent
+    description: Content combines target profiling, lure, impersonation, or outbound contact preparation with deception.
+    threshold: 0.70
+fides:
+  - name: deceptive_tasking_judge
+    prompt: Assess whether redacted facts indicate deceptive target-oriented social engineering tasking.
+    threshold: 0.65
+signals:
+  - name: untrusted_origin
+    type: event_field_in
+    field: origin
+    values:
+      - resource_content
+      - tool_output
+      - server_manifest
+      - server_sampling
+  - name: social_engineering_shape
+    type: feature_flag
+    feature: social_engineering_shape
+  - name: deception_shape
+    type: feature_flag
+    feature: deception_shape
+condition: (signals.untrusted_origin and signals.social_engineering_shape and signals.deception_shape) or semantics.deceptive_targeting_intent or fides.deceptive_tasking_judge
+recommended_action: quarantine
+fixtures:
+  positive:
+    - synthetic_deceptive_social_engineering_tasking
+  negative:
+    - bnm.authorized_awareness_training
+safety_notes: Structural social-engineering indicators only; no lure text, target details, or operational instructions.

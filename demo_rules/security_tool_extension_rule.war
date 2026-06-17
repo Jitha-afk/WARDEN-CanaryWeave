@@ -1,0 +1,43 @@
+id: cwfr-demo-0001
+name: SecurityToolExtensionRule
+version: 0.1.0
+category: demo/security_tool_extension_request
+severity: high
+scope: prompt
+description: Detects requests for help developing extensions for cybersecurity tools.
+meta:
+  author: Project Open Hand Monk
+  status: demo
+keywords:
+  - name: develop
+    type: exact
+    value: develop
+  - name: extension
+    type: exact
+    value: extension
+  - name: metasploit
+    type: exact
+    value: metasploit
+semantics:
+  - name: tool_dev_request
+    description: Prompt asks for development help that modifies or extends a security tool.
+    threshold: 0.70
+  - name: security_tool_modification
+    description: Prompt targets extension or modification of a cybersecurity framework or tool.
+    threshold: 0.70
+fides:
+  - name: extension_check
+    prompt: Assess whether public-safe normalized facts indicate a security-tool extension request.
+    threshold: 0.65
+signals:
+  - name: security_tool_extension_shape
+    type: feature_flag
+    feature: security_tool_extension_shape
+condition: signals.security_tool_extension_shape
+recommended_action: quarantine
+fixtures:
+  positive:
+    - demo_security_tool_extension_request
+  negative:
+    - demo_general_extension_request
+safety_notes: Demo rule uses high-level structural detection only; no exploit steps, code, or operational tool guidance.

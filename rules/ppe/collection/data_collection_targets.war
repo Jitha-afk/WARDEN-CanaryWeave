@@ -1,0 +1,16 @@
+id: cwfr-ppe-0020
+name: DataCollectionTargets
+version: 0.1.0
+category: ppe/collection/local_data_stores
+severity: medium
+description: 'Local mail spools and note databases targeted for data collection.'
+meta:
+  author: WARDEN PPE Benchmark
+  status: benchmark
+  tactic: Collection
+  source: PPE signature baseline
+keywords:
+  mail_spool: '//var/(mail|spool/mail)//i'
+  sticky_notes_db: '/\\Microsoft\.MicrosoftStickyNotes_.*\\LocalState\\plum\.sqlite/i'
+condition: any of keywords.*
+recommended_action: audit

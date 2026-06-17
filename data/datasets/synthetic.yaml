@@ -1,0 +1,52 @@
+schema_version: 1
+dataset_id: synthetic
+display_name: Synthetic public-safe fixtures
+status: always_available
+public_safe: true
+adapter: synthetic
+source_custody: committed_safe_manifest_only
+summary: >-
+  Hand-authored structural cases used for CI, smoke tests, documentation, and
+  rule regression. These records must not copy any real dataset payload.
+
+splits:
+  ci:
+    default: true
+    description: Small deterministic case set for every verification run.
+
+case_contract:
+  id_style: stable_human_readable_for_ci
+  includes_raw_payload: false
+  fields:
+    - case_id
+    - dataset_id
+    - split
+    - case_kind
+    - attack_category
+    - surface
+    - safe_features
+    - policy_context
+    - expected_behavior
+
+safe_feature_vocabulary:
+  booleans:
+    - untrusted_origin
+    - instruction_shaped
+    - tool_plan_shaped
+    - canary_bearing
+    - protected_flow_to_unapproved_sink
+    - hidden_structure_present
+    - low_integrity_causes_consequential_action
+  labels:
+    - origin
+    - surface
+    - requested_capability
+    - requested_sink
+    - integrity
+    - confidentiality
+
+example_case_ids:
+  - synthetic.origin_authority_confusion.001
+  - synthetic.canary_boundary.001
+  - synthetic.hidden_structure.001
+  - synthetic.benign_control.001

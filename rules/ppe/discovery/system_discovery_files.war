@@ -1,0 +1,22 @@
+id: cwfr-ppe-0019
+name: UnixSystemDiscoveryFiles
+version: 0.1.0
+category: ppe/discovery/unix_system_files
+severity: medium
+description: 'Reads of system, network, mount, log, web-server, and proc discovery files on Unix.'
+meta:
+  author: WARDEN PPE Benchmark
+  status: benchmark
+  tactic: Discovery
+  source: PPE signature baseline
+keywords:
+  network_config: '//etc/(hosts|hostname|resolv\.conf|network/interfaces)/i'
+  php_config: '//etc/php.*/(php\.ini|conf\.d/)/i'
+  backup_artifacts: '/\.(bak|backup|old|orig|save|swp|~)$/i'
+  nsswitch_config: '//etc/nsswitch\.conf/i'
+  mount_tables: '//etc/(fstab|mtab|exports)/i'
+  auth_logs: '//var/log/(auth\.log|secure|syslog|messages|faillog|lastlog)/i'
+  web_server_config: '//etc/(apache2|httpd|nginx)/(sites-(enabled|available)/|conf\.d/|\.htpasswd)/i'
+  proc_filesystem: '//proc/(self|[0-9]+)/(environ|cmdline|maps|mem|fd/)/i'
+condition: any of keywords.*
+recommended_action: audit

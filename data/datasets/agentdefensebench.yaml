@@ -1,0 +1,49 @@
+schema_version: 1
+dataset_id: agentdefensebench
+display_name: AgentDefenseBench controlled local dataset
+status: optional_local_private
+public_safe: false
+adapter: agentdefensebench
+local_path_env: CANARYWEAVE_AGENTDEFENSEBENCH_ROOT
+absent_behavior: skipped_missing_local_path
+summary: >-
+  Adapter contract for AgentDefenseBench-derived cases when a local copy is
+  available. The harness must skip cleanly when the path is absent.
+
+source_custody:
+  raw_payloads_in_repo: false
+  raw_to_case_manifest_public: false
+  committed_payload_fields: none
+  public_export_policy: redacted_features_only
+
+splits:
+  dev:
+    description: Private tuning split when available.
+  test:
+    description: Frozen private evaluation split when available.
+
+case_contract:
+  id_style: opaque_non_reconstructable
+  raw_ref_visibility: private_only
+  includes_raw_payload: false
+  emitted_public_fields:
+    - case_id
+    - dataset_id
+    - split
+    - case_kind
+    - attack_category
+    - surface
+    - safe_features
+    - policy_context
+    - expected_behavior
+  withheld_fields:
+    - raw_prompt
+    - raw_completion
+    - raw_tool_output
+    - raw_trace
+    - raw_ref
+    - judge_transcript
+
+skip_report:
+  dataset_id: agentdefensebench
+  status_when_missing: skipped_missing_local_path

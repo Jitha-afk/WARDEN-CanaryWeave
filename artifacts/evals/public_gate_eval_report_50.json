@@ -1,0 +1,1045 @@
+{
+  "adapter_results": [
+    {
+      "case_count": 5,
+      "dataset_id": "synthetic",
+      "message": "synthetic adapter loaded 5 public-safe cases",
+      "safe_metadata": {
+        "public_safe": true,
+        "source": "hand_authored_ci"
+      },
+      "status": "loaded"
+    },
+    {
+      "case_count": 0,
+      "dataset_id": "asb",
+      "message": "asb skipped: missing configured local dataset path",
+      "safe_metadata": {},
+      "status": "skipped_missing_local_path"
+    },
+    {
+      "case_count": 0,
+      "dataset_id": "agentdefensebench",
+      "message": "agentdefensebench skipped: missing configured local dataset path",
+      "safe_metadata": {
+        "absent_behavior": "skipped_missing_local_path"
+      },
+      "status": "skipped_missing_local_path"
+    }
+  ],
+  "disagreement_matrix": {
+    "case_level_rows_included": false,
+    "joint_patterns": {
+      "allow|allow|allow": 100,
+      "allow|block|block": 50,
+      "block|block|block": 50,
+      "block|quarantine|quarantine": 50
+    },
+    "pairs": {
+      "regex_baseline__rules_plus_fides": {
+        "different_action": 100,
+        "different_block_outcome": 50,
+        "left_allows_right_blocks": 50,
+        "left_blocks_right_allows": 0,
+        "same_action": 150,
+        "same_block_outcome": 200,
+        "total_compared": 250
+      },
+      "regex_baseline__yara_rules": {
+        "different_action": 100,
+        "different_block_outcome": 50,
+        "left_allows_right_blocks": 50,
+        "left_blocks_right_allows": 0,
+        "same_action": 150,
+        "same_block_outcome": 200,
+        "total_compared": 250
+      },
+      "yara_rules__rules_plus_fides": {
+        "different_action": 0,
+        "different_block_outcome": 0,
+        "left_allows_right_blocks": 0,
+        "left_blocks_right_allows": 0,
+        "same_action": 250,
+        "same_block_outcome": 250,
+        "total_compared": 250
+      }
+    },
+    "stacks": [
+      "regex_baseline",
+      "yara_rules",
+      "rules_plus_fides"
+    ]
+  },
+  "expected_rule_evidence": {
+    "available": false,
+    "by_category": {
+      "benign_control": {
+        "cases_with_expected_rules": 0,
+        "cases_without_expected_rules": 50,
+        "expected_rule_hit_rate": 0.0,
+        "expected_rule_hits": 0,
+        "expected_rule_misses": 0,
+        "total_cases": 50,
+        "unique_expected_rule_ids": [],
+        "unique_hit_rule_ids": [],
+        "unique_missed_rule_ids": []
+      },
+      "hidden_unicode": {
+        "cases_with_expected_rules": 0,
+        "cases_without_expected_rules": 50,
+        "expected_rule_hit_rate": 0.0,
+        "expected_rule_hits": 0,
+        "expected_rule_misses": 0,
+        "total_cases": 50,
+        "unique_expected_rule_ids": [],
+        "unique_hit_rule_ids": [],
+        "unique_missed_rule_ids": []
+      },
+      "origin_authority_confusion": {
+        "cases_with_expected_rules": 0,
+        "cases_without_expected_rules": 50,
+        "expected_rule_hit_rate": 0.0,
+        "expected_rule_hits": 0,
+        "expected_rule_misses": 0,
+        "total_cases": 50,
+        "unique_expected_rule_ids": [],
+        "unique_hit_rule_ids": [],
+        "unique_missed_rule_ids": []
+      },
+      "semantic_policy_gap": {
+        "cases_with_expected_rules": 0,
+        "cases_without_expected_rules": 50,
+        "expected_rule_hit_rate": 0.0,
+        "expected_rule_hits": 0,
+        "expected_rule_misses": 0,
+        "total_cases": 50,
+        "unique_expected_rule_ids": [],
+        "unique_hit_rule_ids": [],
+        "unique_missed_rule_ids": []
+      },
+      "unauthorized_data_flow": {
+        "cases_with_expected_rules": 0,
+        "cases_without_expected_rules": 50,
+        "expected_rule_hit_rate": 0.0,
+        "expected_rule_hits": 0,
+        "expected_rule_misses": 0,
+        "total_cases": 50,
+        "unique_expected_rule_ids": [],
+        "unique_hit_rule_ids": [],
+        "unique_missed_rule_ids": []
+      }
+    },
+    "by_dataset": {
+      "synthetic": {
+        "cases_with_expected_rules": 0,
+        "cases_without_expected_rules": 250,
+        "expected_rule_hit_rate": 0.0,
+        "expected_rule_hits": 0,
+        "expected_rule_misses": 0,
+        "total_cases": 250,
+        "unique_expected_rule_ids": [],
+        "unique_hit_rule_ids": [],
+        "unique_missed_rule_ids": []
+      }
+    },
+    "by_dataset_and_category": {
+      "synthetic": {
+        "benign_control": {
+          "cases_with_expected_rules": 0,
+          "cases_without_expected_rules": 50,
+          "expected_rule_hit_rate": 0.0,
+          "expected_rule_hits": 0,
+          "expected_rule_misses": 0,
+          "total_cases": 50,
+          "unique_expected_rule_ids": [],
+          "unique_hit_rule_ids": [],
+          "unique_missed_rule_ids": []
+        },
+        "hidden_unicode": {
+          "cases_with_expected_rules": 0,
+          "cases_without_expected_rules": 50,
+          "expected_rule_hit_rate": 0.0,
+          "expected_rule_hits": 0,
+          "expected_rule_misses": 0,
+          "total_cases": 50,
+          "unique_expected_rule_ids": [],
+          "unique_hit_rule_ids": [],
+          "unique_missed_rule_ids": []
+        },
+        "origin_authority_confusion": {
+          "cases_with_expected_rules": 0,
+          "cases_without_expected_rules": 50,
+          "expected_rule_hit_rate": 0.0,
+          "expected_rule_hits": 0,
+          "expected_rule_misses": 0,
+          "total_cases": 50,
+          "unique_expected_rule_ids": [],
+          "unique_hit_rule_ids": [],
+          "unique_missed_rule_ids": []
+        },
+        "semantic_policy_gap": {
+          "cases_with_expected_rules": 0,
+          "cases_without_expected_rules": 50,
+          "expected_rule_hit_rate": 0.0,
+          "expected_rule_hits": 0,
+          "expected_rule_misses": 0,
+          "total_cases": 50,
+          "unique_expected_rule_ids": [],
+          "unique_hit_rule_ids": [],
+          "unique_missed_rule_ids": []
+        },
+        "unauthorized_data_flow": {
+          "cases_with_expected_rules": 0,
+          "cases_without_expected_rules": 50,
+          "expected_rule_hit_rate": 0.0,
+          "expected_rule_hits": 0,
+          "expected_rule_misses": 0,
+          "total_cases": 50,
+          "unique_expected_rule_ids": [],
+          "unique_hit_rule_ids": [],
+          "unique_missed_rule_ids": []
+        }
+      }
+    },
+    "case_level_rows_included": false,
+    "cases_with_expected_rules": 0,
+    "cases_without_expected_rules": 250,
+    "expected_rule_hit_rate": 0.0,
+    "expected_rule_hits": 0,
+    "expected_rule_misses": 0,
+    "reason": "no expected_rule_ids metadata present in case results",
+    "total_cases": 250,
+    "unique_expected_rule_ids": [],
+    "unique_hit_rule_ids": [],
+    "unique_missed_rule_ids": []
+  },
+  "false_positive_diagnostics": {
+    "available": true,
+    "by_category": {
+      "benign_control": {
+        "false_positive_decisions": 0,
+        "false_positive_rate": 0.0,
+        "total_benign_decisions": 200
+      }
+    },
+    "by_dataset": {
+      "synthetic": {
+        "false_positive_decisions": 0,
+        "false_positive_rate": 0.0,
+        "total_benign_decisions": 200
+      }
+    },
+    "by_dataset_and_category": {
+      "synthetic": {
+        "benign_control": {
+          "false_positive_decisions": 0,
+          "false_positive_rate": 0.0,
+          "total_benign_decisions": 200
+        }
+      }
+    },
+    "by_rule": {},
+    "by_stack": {
+      "no_guard": {
+        "false_positive_decisions": 0,
+        "false_positive_rate": 0.0,
+        "total_benign_decisions": 50
+      },
+      "regex_baseline": {
+        "false_positive_decisions": 0,
+        "false_positive_rate": 0.0,
+        "total_benign_decisions": 50
+      },
+      "rules_plus_fides": {
+        "false_positive_decisions": 0,
+        "false_positive_rate": 0.0,
+        "total_benign_decisions": 50
+      },
+      "yara_rules": {
+        "false_positive_decisions": 0,
+        "false_positive_rate": 0.0,
+        "total_benign_decisions": 50
+      }
+    },
+    "case_level_rows_included": false,
+    "false_positive_rate": 0.0,
+    "reason": null,
+    "total_benign_decisions": 200,
+    "total_false_positive_decisions": 0
+  },
+  "groups": {
+    "by_category": {
+      "benign_control": {
+        "blocked_or_quarantined": 0,
+        "total": 50
+      },
+      "hidden_unicode": {
+        "blocked_or_quarantined": 50,
+        "total": 50
+      },
+      "origin_authority_confusion": {
+        "blocked_or_quarantined": 50,
+        "total": 50
+      },
+      "semantic_policy_gap": {
+        "blocked_or_quarantined": 0,
+        "total": 50
+      },
+      "unauthorized_data_flow": {
+        "blocked_or_quarantined": 50,
+        "total": 50
+      }
+    },
+    "by_dataset": {
+      "synthetic": {
+        "blocked_or_quarantined": 150,
+        "total": 250
+      }
+    },
+    "by_surface": {
+      "mcp_resource": {
+        "blocked_or_quarantined": 50,
+        "total": 50
+      },
+      "mcp_tool": {
+        "blocked_or_quarantined": 50,
+        "total": 50
+      },
+      "prompt": {
+        "blocked_or_quarantined": 0,
+        "total": 100
+      },
+      "tool_result": {
+        "blocked_or_quarantined": 50,
+        "total": 50
+      }
+    }
+  },
+  "incremental_metrics": {
+    "attack_case_denominator": 200,
+    "fides_calls": 100,
+    "fides_incremental_catch_rate_vs_all_attacks": 0.0,
+    "fides_incremental_catch_rate_vs_warden_misses": 0.0,
+    "fides_incremental_catches_vs_warden": 0,
+    "fides_latency_ms": {
+      "avg": null,
+      "count": 0,
+      "max": null,
+      "min": null
+    },
+    "fides_provider_calls": 0,
+    "regex_miss_denominator": 100,
+    "remaining_miss_rate_after_rules_plus_fides": 0.25,
+    "remaining_misses_after_rules_plus_fides": 50,
+    "warden_incremental_catch_rate_vs_regex_misses": 0.5,
+    "warden_incremental_catches_vs_regex": 50,
+    "warden_miss_denominator": 50
+  },
+  "iterations": 50,
+  "maintainability_metrics": {
+    "covered_rule_count": 4,
+    "dataset_rule_coverage": {
+      "synthetic": [
+        "cwfr-0001",
+        "cwfr-0002",
+        "cwfr-0003",
+        "cwfr-0004"
+      ]
+    },
+    "rule_count": 4,
+    "rule_coverage_by_category": {
+      "hidden_unicode": {
+        "coverage_ratio": 0.1818,
+        "covered_rule_count": 2,
+        "covered_rule_ids": [
+          "cwfr-0003",
+          "cwfr-0004"
+        ],
+        "hit_count": 100,
+        "total_rule_count": 11
+      },
+      "origin_authority_confusion": {
+        "coverage_ratio": 0.1818,
+        "covered_rule_count": 2,
+        "covered_rule_ids": [
+          "cwfr-0001",
+          "cwfr-0003"
+        ],
+        "hit_count": 100,
+        "total_rule_count": 11
+      },
+      "unauthorized_data_flow": {
+        "coverage_ratio": 0.0909,
+        "covered_rule_count": 1,
+        "covered_rule_ids": [
+          "cwfr-0002"
+        ],
+        "hit_count": 50,
+        "total_rule_count": 11
+      }
+    },
+    "rule_coverage_by_dataset": {
+      "synthetic": {
+        "coverage_ratio": 0.3636,
+        "covered_rule_count": 4,
+        "covered_rule_ids": [
+          "cwfr-0001",
+          "cwfr-0002",
+          "cwfr-0003",
+          "cwfr-0004"
+        ],
+        "hit_count": 250,
+        "total_rule_count": 11
+      }
+    },
+    "rule_coverage_by_dataset_and_category": {
+      "synthetic": {
+        "hidden_unicode": {
+          "coverage_ratio": 0.1818,
+          "covered_rule_count": 2,
+          "covered_rule_ids": [
+            "cwfr-0003",
+            "cwfr-0004"
+          ],
+          "hit_count": 100,
+          "total_rule_count": 11
+        },
+        "origin_authority_confusion": {
+          "coverage_ratio": 0.1818,
+          "covered_rule_count": 2,
+          "covered_rule_ids": [
+            "cwfr-0001",
+            "cwfr-0003"
+          ],
+          "hit_count": 100,
+          "total_rule_count": 11
+        },
+        "unauthorized_data_flow": {
+          "coverage_ratio": 0.0909,
+          "covered_rule_count": 1,
+          "covered_rule_ids": [
+            "cwfr-0002"
+          ],
+          "hit_count": 50,
+          "total_rule_count": 11
+        }
+      }
+    },
+    "rule_coverage_by_surface": {
+      "mcp_resource": {
+        "coverage_ratio": 0.1818,
+        "covered_rule_count": 2,
+        "covered_rule_ids": [
+          "cwfr-0003",
+          "cwfr-0004"
+        ],
+        "hit_count": 100,
+        "total_rule_count": 11
+      },
+      "mcp_tool": {
+        "coverage_ratio": 0.1818,
+        "covered_rule_count": 2,
+        "covered_rule_ids": [
+          "cwfr-0001",
+          "cwfr-0003"
+        ],
+        "hit_count": 100,
+        "total_rule_count": 11
+      },
+      "tool_result": {
+        "coverage_ratio": 0.0909,
+        "covered_rule_count": 1,
+        "covered_rule_ids": [
+          "cwfr-0002"
+        ],
+        "hit_count": 50,
+        "total_rule_count": 11
+      }
+    },
+    "rule_engine_codename": "WARDEN",
+    "rules_with_no_coverage": [
+      "cwfr-0104",
+      "cwfr-0105",
+      "cwfr-0106",
+      "cwfr-0107",
+      "cwfr-0108",
+      "cwfr-0109",
+      "cwfr-0110"
+    ],
+    "rules_with_no_coverage_count": 7,
+    "total_rule_count": 11,
+    "unique_rule_ids": [
+      "cwfr-0001",
+      "cwfr-0002",
+      "cwfr-0003",
+      "cwfr-0004"
+    ]
+  },
+  "missing_prerequisite_summary": {
+    "available": false,
+    "by_category": {},
+    "by_dataset": {},
+    "by_dataset_and_category": {},
+    "by_field": {},
+    "case_level_rows_included": false,
+    "cases_evaluated": 250,
+    "cases_with_required_fields": 0,
+    "reason": "no required_fields metadata present in case results",
+    "total_missing_prerequisites": 0
+  },
+  "provider_calls": 0,
+  "safe_fact_completeness": {
+    "approval_bypass_shape_count": 0,
+    "approval_bypass_shape_ratio": 0.0,
+    "by_category": {
+      "benign_control": {
+        "approval_bypass_shape_count": 0,
+        "approval_bypass_shape_ratio": 0.0,
+        "command_execution_shape_count": 0,
+        "command_execution_shape_ratio": 0.0,
+        "credential_or_secret_shape_count": 0,
+        "credential_or_secret_shape_ratio": 0.0,
+        "dataset_native_fallback_count": 0,
+        "dataset_native_fallback_ratio": 0.0,
+        "deception_shape_count": 0,
+        "deception_shape_ratio": 0.0,
+        "destructive_action_shape_count": 0,
+        "destructive_action_shape_ratio": 0.0,
+        "exfiltration_shape_count": 0,
+        "exfiltration_shape_ratio": 0.0,
+        "instruction_shape_count": 0,
+        "instruction_shape_ratio": 0.0,
+        "mapped_category_count": 50,
+        "mapped_category_ratio": 1.0,
+        "memory_poisoning_shape_count": 0,
+        "memory_poisoning_shape_ratio": 0.0,
+        "network_request_shape_count": 0,
+        "network_request_shape_ratio": 0.0,
+        "obfuscated_count": 0,
+        "obfuscated_ratio": 0.0,
+        "path_boundary_shape_count": 0,
+        "path_boundary_shape_ratio": 0.0,
+        "protected_context_extraction_shape_count": 0,
+        "protected_context_extraction_shape_ratio": 0.0,
+        "requested_capability_present_count": 50,
+        "requested_capability_present_ratio": 1.0,
+        "requested_sink_present_count": 50,
+        "requested_sink_present_ratio": 1.0,
+        "social_engineering_shape_count": 0,
+        "social_engineering_shape_ratio": 0.0,
+        "tool_plan_shape_count": 0,
+        "tool_plan_shape_ratio": 0.0,
+        "total_cases": 50
+      },
+      "hidden_unicode": {
+        "approval_bypass_shape_count": 0,
+        "approval_bypass_shape_ratio": 0.0,
+        "command_execution_shape_count": 0,
+        "command_execution_shape_ratio": 0.0,
+        "credential_or_secret_shape_count": 0,
+        "credential_or_secret_shape_ratio": 0.0,
+        "dataset_native_fallback_count": 0,
+        "dataset_native_fallback_ratio": 0.0,
+        "deception_shape_count": 0,
+        "deception_shape_ratio": 0.0,
+        "destructive_action_shape_count": 0,
+        "destructive_action_shape_ratio": 0.0,
+        "exfiltration_shape_count": 0,
+        "exfiltration_shape_ratio": 0.0,
+        "instruction_shape_count": 50,
+        "instruction_shape_ratio": 1.0,
+        "mapped_category_count": 50,
+        "mapped_category_ratio": 1.0,
+        "memory_poisoning_shape_count": 0,
+        "memory_poisoning_shape_ratio": 0.0,
+        "network_request_shape_count": 0,
+        "network_request_shape_ratio": 0.0,
+        "obfuscated_count": 50,
+        "obfuscated_ratio": 1.0,
+        "path_boundary_shape_count": 0,
+        "path_boundary_shape_ratio": 0.0,
+        "protected_context_extraction_shape_count": 0,
+        "protected_context_extraction_shape_ratio": 0.0,
+        "requested_capability_present_count": 0,
+        "requested_capability_present_ratio": 0.0,
+        "requested_sink_present_count": 0,
+        "requested_sink_present_ratio": 0.0,
+        "social_engineering_shape_count": 0,
+        "social_engineering_shape_ratio": 0.0,
+        "tool_plan_shape_count": 0,
+        "tool_plan_shape_ratio": 0.0,
+        "total_cases": 50
+      },
+      "origin_authority_confusion": {
+        "approval_bypass_shape_count": 0,
+        "approval_bypass_shape_ratio": 0.0,
+        "command_execution_shape_count": 0,
+        "command_execution_shape_ratio": 0.0,
+        "credential_or_secret_shape_count": 0,
+        "credential_or_secret_shape_ratio": 0.0,
+        "dataset_native_fallback_count": 0,
+        "dataset_native_fallback_ratio": 0.0,
+        "deception_shape_count": 0,
+        "deception_shape_ratio": 0.0,
+        "destructive_action_shape_count": 0,
+        "destructive_action_shape_ratio": 0.0,
+        "exfiltration_shape_count": 0,
+        "exfiltration_shape_ratio": 0.0,
+        "instruction_shape_count": 50,
+        "instruction_shape_ratio": 1.0,
+        "mapped_category_count": 50,
+        "mapped_category_ratio": 1.0,
+        "memory_poisoning_shape_count": 0,
+        "memory_poisoning_shape_ratio": 0.0,
+        "network_request_shape_count": 0,
+        "network_request_shape_ratio": 0.0,
+        "obfuscated_count": 0,
+        "obfuscated_ratio": 0.0,
+        "path_boundary_shape_count": 0,
+        "path_boundary_shape_ratio": 0.0,
+        "protected_context_extraction_shape_count": 0,
+        "protected_context_extraction_shape_ratio": 0.0,
+        "requested_capability_present_count": 50,
+        "requested_capability_present_ratio": 1.0,
+        "requested_sink_present_count": 50,
+        "requested_sink_present_ratio": 1.0,
+        "social_engineering_shape_count": 0,
+        "social_engineering_shape_ratio": 0.0,
+        "tool_plan_shape_count": 50,
+        "tool_plan_shape_ratio": 1.0,
+        "total_cases": 50
+      },
+      "semantic_policy_gap": {
+        "approval_bypass_shape_count": 0,
+        "approval_bypass_shape_ratio": 0.0,
+        "command_execution_shape_count": 0,
+        "command_execution_shape_ratio": 0.0,
+        "credential_or_secret_shape_count": 0,
+        "credential_or_secret_shape_ratio": 0.0,
+        "dataset_native_fallback_count": 0,
+        "dataset_native_fallback_ratio": 0.0,
+        "deception_shape_count": 0,
+        "deception_shape_ratio": 0.0,
+        "destructive_action_shape_count": 0,
+        "destructive_action_shape_ratio": 0.0,
+        "exfiltration_shape_count": 0,
+        "exfiltration_shape_ratio": 0.0,
+        "instruction_shape_count": 0,
+        "instruction_shape_ratio": 0.0,
+        "mapped_category_count": 50,
+        "mapped_category_ratio": 1.0,
+        "memory_poisoning_shape_count": 0,
+        "memory_poisoning_shape_ratio": 0.0,
+        "network_request_shape_count": 0,
+        "network_request_shape_ratio": 0.0,
+        "obfuscated_count": 0,
+        "obfuscated_ratio": 0.0,
+        "path_boundary_shape_count": 0,
+        "path_boundary_shape_ratio": 0.0,
+        "protected_context_extraction_shape_count": 0,
+        "protected_context_extraction_shape_ratio": 0.0,
+        "requested_capability_present_count": 50,
+        "requested_capability_present_ratio": 1.0,
+        "requested_sink_present_count": 50,
+        "requested_sink_present_ratio": 1.0,
+        "social_engineering_shape_count": 0,
+        "social_engineering_shape_ratio": 0.0,
+        "tool_plan_shape_count": 0,
+        "tool_plan_shape_ratio": 0.0,
+        "total_cases": 50
+      },
+      "unauthorized_data_flow": {
+        "approval_bypass_shape_count": 0,
+        "approval_bypass_shape_ratio": 0.0,
+        "command_execution_shape_count": 0,
+        "command_execution_shape_ratio": 0.0,
+        "credential_or_secret_shape_count": 0,
+        "credential_or_secret_shape_ratio": 0.0,
+        "dataset_native_fallback_count": 0,
+        "dataset_native_fallback_ratio": 0.0,
+        "deception_shape_count": 0,
+        "deception_shape_ratio": 0.0,
+        "destructive_action_shape_count": 0,
+        "destructive_action_shape_ratio": 0.0,
+        "exfiltration_shape_count": 0,
+        "exfiltration_shape_ratio": 0.0,
+        "instruction_shape_count": 0,
+        "instruction_shape_ratio": 0.0,
+        "mapped_category_count": 50,
+        "mapped_category_ratio": 1.0,
+        "memory_poisoning_shape_count": 0,
+        "memory_poisoning_shape_ratio": 0.0,
+        "network_request_shape_count": 0,
+        "network_request_shape_ratio": 0.0,
+        "obfuscated_count": 0,
+        "obfuscated_ratio": 0.0,
+        "path_boundary_shape_count": 0,
+        "path_boundary_shape_ratio": 0.0,
+        "protected_context_extraction_shape_count": 0,
+        "protected_context_extraction_shape_ratio": 0.0,
+        "requested_capability_present_count": 0,
+        "requested_capability_present_ratio": 0.0,
+        "requested_sink_present_count": 50,
+        "requested_sink_present_ratio": 1.0,
+        "social_engineering_shape_count": 0,
+        "social_engineering_shape_ratio": 0.0,
+        "tool_plan_shape_count": 0,
+        "tool_plan_shape_ratio": 0.0,
+        "total_cases": 50
+      }
+    },
+    "by_dataset": {
+      "synthetic": {
+        "approval_bypass_shape_count": 0,
+        "approval_bypass_shape_ratio": 0.0,
+        "command_execution_shape_count": 0,
+        "command_execution_shape_ratio": 0.0,
+        "credential_or_secret_shape_count": 0,
+        "credential_or_secret_shape_ratio": 0.0,
+        "dataset_native_fallback_count": 0,
+        "dataset_native_fallback_ratio": 0.0,
+        "deception_shape_count": 0,
+        "deception_shape_ratio": 0.0,
+        "destructive_action_shape_count": 0,
+        "destructive_action_shape_ratio": 0.0,
+        "exfiltration_shape_count": 0,
+        "exfiltration_shape_ratio": 0.0,
+        "instruction_shape_count": 100,
+        "instruction_shape_ratio": 0.4,
+        "mapped_category_count": 250,
+        "mapped_category_ratio": 1.0,
+        "memory_poisoning_shape_count": 0,
+        "memory_poisoning_shape_ratio": 0.0,
+        "network_request_shape_count": 0,
+        "network_request_shape_ratio": 0.0,
+        "obfuscated_count": 50,
+        "obfuscated_ratio": 0.2,
+        "path_boundary_shape_count": 0,
+        "path_boundary_shape_ratio": 0.0,
+        "protected_context_extraction_shape_count": 0,
+        "protected_context_extraction_shape_ratio": 0.0,
+        "requested_capability_present_count": 150,
+        "requested_capability_present_ratio": 0.6,
+        "requested_sink_present_count": 200,
+        "requested_sink_present_ratio": 0.8,
+        "social_engineering_shape_count": 0,
+        "social_engineering_shape_ratio": 0.0,
+        "tool_plan_shape_count": 50,
+        "tool_plan_shape_ratio": 0.2,
+        "total_cases": 250
+      }
+    },
+    "by_dataset_and_category": {
+      "synthetic": {
+        "benign_control": {
+          "approval_bypass_shape_count": 0,
+          "approval_bypass_shape_ratio": 0.0,
+          "command_execution_shape_count": 0,
+          "command_execution_shape_ratio": 0.0,
+          "credential_or_secret_shape_count": 0,
+          "credential_or_secret_shape_ratio": 0.0,
+          "dataset_native_fallback_count": 0,
+          "dataset_native_fallback_ratio": 0.0,
+          "deception_shape_count": 0,
+          "deception_shape_ratio": 0.0,
+          "destructive_action_shape_count": 0,
+          "destructive_action_shape_ratio": 0.0,
+          "exfiltration_shape_count": 0,
+          "exfiltration_shape_ratio": 0.0,
+          "instruction_shape_count": 0,
+          "instruction_shape_ratio": 0.0,
+          "mapped_category_count": 50,
+          "mapped_category_ratio": 1.0,
+          "memory_poisoning_shape_count": 0,
+          "memory_poisoning_shape_ratio": 0.0,
+          "network_request_shape_count": 0,
+          "network_request_shape_ratio": 0.0,
+          "obfuscated_count": 0,
+          "obfuscated_ratio": 0.0,
+          "path_boundary_shape_count": 0,
+          "path_boundary_shape_ratio": 0.0,
+          "protected_context_extraction_shape_count": 0,
+          "protected_context_extraction_shape_ratio": 0.0,
+          "requested_capability_present_count": 50,
+          "requested_capability_present_ratio": 1.0,
+          "requested_sink_present_count": 50,
+          "requested_sink_present_ratio": 1.0,
+          "social_engineering_shape_count": 0,
+          "social_engineering_shape_ratio": 0.0,
+          "tool_plan_shape_count": 0,
+          "tool_plan_shape_ratio": 0.0,
+          "total_cases": 50
+        },
+        "hidden_unicode": {
+          "approval_bypass_shape_count": 0,
+          "approval_bypass_shape_ratio": 0.0,
+          "command_execution_shape_count": 0,
+          "command_execution_shape_ratio": 0.0,
+          "credential_or_secret_shape_count": 0,
+          "credential_or_secret_shape_ratio": 0.0,
+          "dataset_native_fallback_count": 0,
+          "dataset_native_fallback_ratio": 0.0,
+          "deception_shape_count": 0,
+          "deception_shape_ratio": 0.0,
+          "destructive_action_shape_count": 0,
+          "destructive_action_shape_ratio": 0.0,
+          "exfiltration_shape_count": 0,
+          "exfiltration_shape_ratio": 0.0,
+          "instruction_shape_count": 50,
+          "instruction_shape_ratio": 1.0,
+          "mapped_category_count": 50,
+          "mapped_category_ratio": 1.0,
+          "memory_poisoning_shape_count": 0,
+          "memory_poisoning_shape_ratio": 0.0,
+          "network_request_shape_count": 0,
+          "network_request_shape_ratio": 0.0,
+          "obfuscated_count": 50,
+          "obfuscated_ratio": 1.0,
+          "path_boundary_shape_count": 0,
+          "path_boundary_shape_ratio": 0.0,
+          "protected_context_extraction_shape_count": 0,
+          "protected_context_extraction_shape_ratio": 0.0,
+          "requested_capability_present_count": 0,
+          "requested_capability_present_ratio": 0.0,
+          "requested_sink_present_count": 0,
+          "requested_sink_present_ratio": 0.0,
+          "social_engineering_shape_count": 0,
+          "social_engineering_shape_ratio": 0.0,
+          "tool_plan_shape_count": 0,
+          "tool_plan_shape_ratio": 0.0,
+          "total_cases": 50
+        },
+        "origin_authority_confusion": {
+          "approval_bypass_shape_count": 0,
+          "approval_bypass_shape_ratio": 0.0,
+          "command_execution_shape_count": 0,
+          "command_execution_shape_ratio": 0.0,
+          "credential_or_secret_shape_count": 0,
+          "credential_or_secret_shape_ratio": 0.0,
+          "dataset_native_fallback_count": 0,
+          "dataset_native_fallback_ratio": 0.0,
+          "deception_shape_count": 0,
+          "deception_shape_ratio": 0.0,
+          "destructive_action_shape_count": 0,
+          "destructive_action_shape_ratio": 0.0,
+          "exfiltration_shape_count": 0,
+          "exfiltration_shape_ratio": 0.0,
+          "instruction_shape_count": 50,
+          "instruction_shape_ratio": 1.0,
+          "mapped_category_count": 50,
+          "mapped_category_ratio": 1.0,
+          "memory_poisoning_shape_count": 0,
+          "memory_poisoning_shape_ratio": 0.0,
+          "network_request_shape_count": 0,
+          "network_request_shape_ratio": 0.0,
+          "obfuscated_count": 0,
+          "obfuscated_ratio": 0.0,
+          "path_boundary_shape_count": 0,
+          "path_boundary_shape_ratio": 0.0,
+          "protected_context_extraction_shape_count": 0,
+          "protected_context_extraction_shape_ratio": 0.0,
+          "requested_capability_present_count": 50,
+          "requested_capability_present_ratio": 1.0,
+          "requested_sink_present_count": 50,
+          "requested_sink_present_ratio": 1.0,
+          "social_engineering_shape_count": 0,
+          "social_engineering_shape_ratio": 0.0,
+          "tool_plan_shape_count": 50,
+          "tool_plan_shape_ratio": 1.0,
+          "total_cases": 50
+        },
+        "semantic_policy_gap": {
+          "approval_bypass_shape_count": 0,
+          "approval_bypass_shape_ratio": 0.0,
+          "command_execution_shape_count": 0,
+          "command_execution_shape_ratio": 0.0,
+          "credential_or_secret_shape_count": 0,
+          "credential_or_secret_shape_ratio": 0.0,
+          "dataset_native_fallback_count": 0,
+          "dataset_native_fallback_ratio": 0.0,
+          "deception_shape_count": 0,
+          "deception_shape_ratio": 0.0,
+          "destructive_action_shape_count": 0,
+          "destructive_action_shape_ratio": 0.0,
+          "exfiltration_shape_count": 0,
+          "exfiltration_shape_ratio": 0.0,
+          "instruction_shape_count": 0,
+          "instruction_shape_ratio": 0.0,
+          "mapped_category_count": 50,
+          "mapped_category_ratio": 1.0,
+          "memory_poisoning_shape_count": 0,
+          "memory_poisoning_shape_ratio": 0.0,
+          "network_request_shape_count": 0,
+          "network_request_shape_ratio": 0.0,
+          "obfuscated_count": 0,
+          "obfuscated_ratio": 0.0,
+          "path_boundary_shape_count": 0,
+          "path_boundary_shape_ratio": 0.0,
+          "protected_context_extraction_shape_count": 0,
+          "protected_context_extraction_shape_ratio": 0.0,
+          "requested_capability_present_count": 50,
+          "requested_capability_present_ratio": 1.0,
+          "requested_sink_present_count": 50,
+          "requested_sink_present_ratio": 1.0,
+          "social_engineering_shape_count": 0,
+          "social_engineering_shape_ratio": 0.0,
+          "tool_plan_shape_count": 0,
+          "tool_plan_shape_ratio": 0.0,
+          "total_cases": 50
+        },
+        "unauthorized_data_flow": {
+          "approval_bypass_shape_count": 0,
+          "approval_bypass_shape_ratio": 0.0,
+          "command_execution_shape_count": 0,
+          "command_execution_shape_ratio": 0.0,
+          "credential_or_secret_shape_count": 0,
+          "credential_or_secret_shape_ratio": 0.0,
+          "dataset_native_fallback_count": 0,
+          "dataset_native_fallback_ratio": 0.0,
+          "deception_shape_count": 0,
+          "deception_shape_ratio": 0.0,
+          "destructive_action_shape_count": 0,
+          "destructive_action_shape_ratio": 0.0,
+          "exfiltration_shape_count": 0,
+          "exfiltration_shape_ratio": 0.0,
+          "instruction_shape_count": 0,
+          "instruction_shape_ratio": 0.0,
+          "mapped_category_count": 50,
+          "mapped_category_ratio": 1.0,
+          "memory_poisoning_shape_count": 0,
+          "memory_poisoning_shape_ratio": 0.0,
+          "network_request_shape_count": 0,
+          "network_request_shape_ratio": 0.0,
+          "obfuscated_count": 0,
+          "obfuscated_ratio": 0.0,
+          "path_boundary_shape_count": 0,
+          "path_boundary_shape_ratio": 0.0,
+          "protected_context_extraction_shape_count": 0,
+          "protected_context_extraction_shape_ratio": 0.0,
+          "requested_capability_present_count": 0,
+          "requested_capability_present_ratio": 0.0,
+          "requested_sink_present_count": 50,
+          "requested_sink_present_ratio": 1.0,
+          "social_engineering_shape_count": 0,
+          "social_engineering_shape_ratio": 0.0,
+          "tool_plan_shape_count": 0,
+          "tool_plan_shape_ratio": 0.0,
+          "total_cases": 50
+        }
+      }
+    },
+    "case_level_rows_included": false,
+    "command_execution_shape_count": 0,
+    "command_execution_shape_ratio": 0.0,
+    "credential_or_secret_shape_count": 0,
+    "credential_or_secret_shape_ratio": 0.0,
+    "dataset_native_fallback_count": 0,
+    "dataset_native_fallback_ratio": 0.0,
+    "deception_shape_count": 0,
+    "deception_shape_ratio": 0.0,
+    "destructive_action_shape_count": 0,
+    "destructive_action_shape_ratio": 0.0,
+    "exfiltration_shape_count": 0,
+    "exfiltration_shape_ratio": 0.0,
+    "instruction_shape_count": 100,
+    "instruction_shape_ratio": 0.4,
+    "mapped_category_count": 250,
+    "mapped_category_ratio": 1.0,
+    "memory_poisoning_shape_count": 0,
+    "memory_poisoning_shape_ratio": 0.0,
+    "network_request_shape_count": 0,
+    "network_request_shape_ratio": 0.0,
+    "obfuscated_count": 50,
+    "obfuscated_ratio": 0.2,
+    "path_boundary_shape_count": 0,
+    "path_boundary_shape_ratio": 0.0,
+    "protected_context_extraction_shape_count": 0,
+    "protected_context_extraction_shape_ratio": 0.0,
+    "requested_capability_present_count": 150,
+    "requested_capability_present_ratio": 0.6,
+    "requested_sink_present_count": 200,
+    "requested_sink_present_ratio": 0.8,
+    "social_engineering_shape_count": 0,
+    "social_engineering_shape_ratio": 0.0,
+    "tool_plan_shape_count": 50,
+    "tool_plan_shape_ratio": 0.2,
+    "total_cases": 250
+  },
+  "safety": {
+    "case_level_rows_included": false,
+    "judge_transcripts_included": false,
+    "model_outputs_included": false,
+    "public_safe": true,
+    "source_material_included": false
+  },
+  "schema_version": "canaryweave_fides.public_report.v1",
+  "security_metrics": {
+    "no_guard": {
+      "asr": 1.0,
+      "asr_reduction_vs_no_guard": 0.0,
+      "asr_reduction_vs_regex": -0.5,
+      "attack_cases": 200,
+      "benign_cases": 50,
+      "benign_refusal_rate": 0.0,
+      "f1": 0.0,
+      "fn": 200,
+      "fp": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "safe_pass_through_rate": 1.0,
+      "tn": 50,
+      "tp": 0
+    },
+    "regex_baseline": {
+      "asr": 0.5,
+      "asr_reduction_vs_no_guard": 0.5,
+      "asr_reduction_vs_regex": 0.0,
+      "attack_cases": 200,
+      "benign_cases": 50,
+      "benign_refusal_rate": 0.0,
+      "f1": 0.6667,
+      "fn": 100,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 0.5,
+      "safe_pass_through_rate": 1.0,
+      "tn": 50,
+      "tp": 100
+    },
+    "rules_plus_fides": {
+      "asr": 0.25,
+      "asr_reduction_vs_no_guard": 0.75,
+      "asr_reduction_vs_regex": 0.25,
+      "attack_cases": 200,
+      "benign_cases": 50,
+      "benign_refusal_rate": 0.0,
+      "f1": 0.8571,
+      "fn": 50,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 0.75,
+      "safe_pass_through_rate": 1.0,
+      "tn": 50,
+      "tp": 150
+    },
+    "yara_rules": {
+      "asr": 0.25,
+      "asr_reduction_vs_no_guard": 0.75,
+      "asr_reduction_vs_regex": 0.25,
+      "attack_cases": 200,
+      "benign_cases": 50,
+      "benign_refusal_rate": 0.0,
+      "f1": 0.8571,
+      "fn": 50,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 0.75,
+      "safe_pass_through_rate": 1.0,
+      "tn": 50,
+      "tp": 150
+    }
+  },
+  "source_schema_version": "canaryweave_fides.gate_eval.v1",
+  "total_cases": 5,
+  "total_iterations": 250
+}

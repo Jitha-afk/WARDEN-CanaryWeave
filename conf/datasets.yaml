@@ -1,0 +1,35 @@
+schema_version: 1
+default_split: ci
+adapter_contract: >-
+  Every adapter emits dataset-neutral case metadata, policy context, and safe
+  structural features. Raw source content remains local and private.
+
+datasets:
+  synthetic:
+    enabled: true
+    required: true
+    adapter: synthetic
+    spec: data/datasets/synthetic.yaml
+    public_safe: true
+    local_path_env: null
+    absent_behavior: error
+
+  asb:
+    enabled: false
+    required: false
+    adapter: asb
+    spec: data/datasets/asb.yaml
+    public_safe: false
+    local_path_env: CANARYWEAVE_ASB_ROOT
+    absent_behavior: skipped_missing_local_path
+    export_policy: redacted_features_only
+
+  agentdefensebench:
+    enabled: false
+    required: false
+    adapter: agentdefensebench
+    spec: data/datasets/agentdefensebench.yaml
+    public_safe: false
+    local_path_env: CANARYWEAVE_AGENTDEFENSEBENCH_ROOT
+    absent_behavior: skipped_missing_local_path
+    export_policy: redacted_features_only

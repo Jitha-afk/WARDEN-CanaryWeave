@@ -1,0 +1,23 @@
+id: cwfr-0004
+name: HiddenUnicodeStructure
+version: 0.1.0
+category: mcp_suspicious_structure/hidden_unicode
+severity: medium
+scope: text_field
+description: Detects invisible or normalization-changing text structure in MCP-visible fields.
+signals:
+  - name: hidden_unicode_present
+    type: text_structure
+    feature: hidden_unicode
+fides:
+  - name: hidden_unicode_judge
+    prompt: Assess whether redacted facts indicate invisible or normalization-changing text structure.
+    threshold: 0.65
+condition: (hidden_unicode_present) or fides.hidden_unicode_judge
+recommended_action: quarantine
+fixtures:
+  positive:
+    - hidden_unicode_structure
+  negative:
+    - host_authorized_tool_plan
+safety_notes: Synthetic text with a zero-width separator only.

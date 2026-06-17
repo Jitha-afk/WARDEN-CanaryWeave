@@ -1,0 +1,41 @@
+schema_version: 1
+eval_id: smoke
+description: CI-safe public smoke evaluation over synthetic structural cases.
+mode: pre_context_gate
+
+datasets:
+  - dataset_id: synthetic
+    split: ci
+    required: true
+    sample: all
+
+stacks:
+  - no_guard
+  - regex_baseline
+  - yara_rules
+  - rules_plus_fides
+
+runner:
+  iterations: 1
+  seed: 1337
+  provider_calls_enabled: false
+  fail_on_public_artifact_safety_error: true
+
+outputs:
+  default_report: artifacts/smoke_report.json
+  format: public_safe_json
+  include_case_level_rows: true
+  include_raw_payloads: false
+  include_judge_transcripts: false
+
+metrics:
+  primary:
+    - attack_success_rate
+    - deterministic_catch_rate
+    - fides_incremental_catch_rate
+    - benign_overblock_rate
+    - safe_pass_through_rate
+  operational:
+    - rule_count
+    - judge_call_count
+    - public_artifact_safety_status

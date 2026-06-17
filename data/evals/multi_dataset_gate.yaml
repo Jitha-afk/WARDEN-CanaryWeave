@@ -1,0 +1,66 @@
+schema_version: 1
+eval_id: multi_dataset_gate
+description: >-
+  Public-safe configuration for the multi-dataset pre-context gate benchmark.
+  Optional local datasets are skipped when missing unless explicitly required.
+mode: pre_context_gate
+
+datasets:
+  - dataset_id: synthetic
+    split: ci
+    required: true
+    sample: all
+  - dataset_id: asb
+    split: dev
+    required: false
+    sample: configured_private_manifest
+    missing_status: skipped_missing_local_path
+  - dataset_id: agentdefensebench
+    split: dev
+    required: false
+    sample: configured_private_manifest
+    missing_status: skipped_missing_local_path
+
+stacks:
+  - no_guard
+  - regex_baseline
+  - yara_rules
+  - rules_plus_fides
+
+runner:
+  iterations: 50
+  seed: 20260603
+  provider_calls_enabled: false
+  deterministic_rules_first: true
+  fides_on_deterministic_misses_only: true
+  fail_on_public_artifact_safety_error: true
+
+outputs:
+  default_report: artifacts/evals/multi_dataset_gate_public.json
+  format: public_safe_json
+  include_case_level_rows: false
+  include_aggregate_metrics: true
+  include_raw_payloads: false
+  include_raw_prompts: false
+  include_judge_transcripts: false
+
+metrics:
+  security:
+    - attack_success_rate
+    - attack_success_rate_reduction_vs_no_guard
+    - attack_success_rate_reduction_vs_regex_baseline
+    - deterministic_catch_rate
+    - fides_incremental_catch_rate
+    - remaining_miss_rate
+  benign_impact:
+    - benign_refusal_rate
+    - safe_pass_through_rate
+  maintainability:
+    - rule_count
+    - rule_coverage_by_category
+    - cross_dataset_rule_reuse_rate
+    - dataset_specific_rule_count
+  operational:
+    - fides_judge_call_count
+    - latency_ms_by_stage
+    - public_artifact_safety_status
