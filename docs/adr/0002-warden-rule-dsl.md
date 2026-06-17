@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted. Supersedes [ADR 0001](0001-warden-rule-grammar.md).
+Accepted. Supersedes [ADR 0001](0001-warden-rule-grammar.md). Amended by
+[ADR 0003](0003-collapse-to-facts-and-cases.md), which drops the `kind` split and
+the `signals` layer, removes the custody/redaction model, and replaces the
+case→rule mapping oracle with a `.cases` corpus.
 
 ## Context
 
