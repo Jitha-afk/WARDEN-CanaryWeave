@@ -36,9 +36,4 @@ signals:
     relation: not_in_allowed_capabilities
 condition: (signals.network_request_shape and signals.capability_not_granted) or semantics.unapproved_network_intent or fides.unapproved_network_judge
 recommended_action: block_and_audit
-fixtures:
-  positive:
-    - synthetic_unapproved_network_request
-  negative:
-    - bnm.network.allowed_api_call
 safety_notes: Structural network-sink indicators only; no live endpoints.

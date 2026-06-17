@@ -46,9 +46,4 @@ signals:
     relation: not_in_allowed_capabilities
 condition: (signals.source_is_server_sampling and signals.output_is_tool_plan_shape and signals.capability_not_granted) or semantics.authority_confusion_intent or fides.policy_violation_judge
 recommended_action: block_and_audit
-fixtures:
-  positive:
-    - server_sampling_origin_mismatch
-  negative:
-    - host_authorized_tool_plan
 safety_notes: Synthetic structural fixtures only; no raw payload text or live sinks.

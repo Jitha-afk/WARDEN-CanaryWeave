@@ -15,9 +15,4 @@ fides:
     threshold: 0.65
 condition: (canary_outside_allowed_sink) or fides.canary_boundary_judge
 recommended_action: block_and_audit
-fixtures:
-  positive:
-    - canary_boundary_crossing
-  negative:
-    - canary_allowed_sink
 safety_notes: Uses benign synthetic marker labels only.

@@ -11,21 +11,21 @@ class RuleValidationError(ValueError):
 
 _ALLOWED_SEVERITIES = {"low", "medium", "high", "critical"}
 _ALLOWED_ACTIONS = {"allow", "audit", "quarantine", "block_and_audit"}
-_ALLOWED_NAMESPACES = {"signals", "keywords", "semantics", "fides"}
+_ALLOWED_NAMESPACES = {"signals", "keywords", "semantics", "llm", "fides"}
 # Authors only have to declare what a rule actually means: a name, how serious a
 # hit is, the boolean condition, and at least one detection section. Everything
-# else (id, version, category, scope, description, action, fixtures, notes) is
+# else (id, version, category, scope, description, action, notes) is
 # optional and defaulted so clean rules stay readable.
 _REQUIRED_FIELDS = {"name", "severity", "condition"}
-_DETECTION_SECTIONS = ("signals", "keywords", "semantics", "fides")
+_DETECTION_SECTIONS = ("signals", "keywords", "semantics", "llm", "fides")
 _BOOLEAN_WORDS = {"and", "or", "not", "true", "false"}
-_NAMESPACED_REF_RE = re.compile(r"\b(signals|keywords|semantics|fides)\.([A-Za-z_][A-Za-z0-9_]*)\b")
+_NAMESPACED_REF_RE = re.compile(r"\b(signals|keywords|semantics|llm|fides)\.([A-Za-z_][A-Za-z0-9_]*)\b")
 _IDENTIFIER_RE = re.compile(r"(?<!\.)\b[A-Za-z_][A-Za-z0-9_]*\b")
 # `any of <ns>.*` / `all of <ns>.*` and `any of (a, b)` / `all of (a, b)` are the
 # only quantifier shapes the condition grammar understands. They are expanded the
 # same way here (for validation) and in the engine (for evaluation).
 _WILDCARD_QUANTIFIER_RE = re.compile(
-    r"\b(any|all)\s+of\s+(signals|keywords|semantics|fides)\s*\.\s*\*"
+    r"\b(any|all)\s+of\s+(signals|keywords|semantics|llm|fides)\s*\.\s*\*"
 )
 _LIST_QUANTIFIER_RE = re.compile(r"\b(any|all)\s+of\s*\(([^)]*)\)")
 _REGEX_FLAG_MAP = {"i": re.I, "m": re.M, "s": re.S, "x": re.X, "a": re.A, "u": re.U}
@@ -130,7 +130,12 @@ def _parse_signals(raw_signals: Any) -> tuple[SignalDefinition, ...]:
     if raw_signals is None:
         return ()
     if not isinstance(raw_signals, list):
-        raise RuleValidationError("signals must be a list")
+        if not isinstance(raw_signals, dict):
+            raise RuleValidationError("signals must be a list or mapping")
+        raw_signals = [
+            {"name": str(raw_name), **(raw if isinstance(raw, dict) else {"type": raw})}
+            for raw_name, raw in raw_signals.items()
+        ]
     signals: list[SignalDefinition] = []
     seen: set[str] = set()
     for raw in raw_signals:
@@ -212,39 +217,55 @@ def _parse_semantics(raw_semantics: Any) -> tuple[SemanticPattern, ...]:
     if raw_semantics is None:
         return ()
     if not isinstance(raw_semantics, list):
-        raise RuleValidationError("semantics must be a list")
+        if not isinstance(raw_semantics, dict):
+            raise RuleValidationError("semantics must be a list or mapping")
+        raw_semantics = [
+            {"name": str(raw_name), **(raw if isinstance(raw, dict) else {"phrase": raw})}
+            for raw_name, raw in raw_semantics.items()
+        ]
     patterns: list[SemanticPattern] = []
     seen: set[str] = set()
     for raw in raw_semantics:
-        if not isinstance(raw, dict) or "name" not in raw or "description" not in raw:
-            raise RuleValidationError("every semantic pattern needs name and description")
+        if not isinstance(raw, dict) or "name" not in raw:
+            raise RuleValidationError("every semantic pattern needs name")
         name = str(raw["name"])
         if name in seen:
             raise RuleValidationError(f"Duplicate semantic name: {name}")
         seen.add(name)
+        phrase = raw.get("phrase", raw.get("description"))
+        if phrase is None:
+            raise RuleValidationError(f"semantic pattern {name} needs phrase")
         threshold = _threshold(raw.get("threshold", 0.5), "semantics", name)
-        params = {k: v for k, v in raw.items() if k not in {"name", "description", "threshold"}}
-        patterns.append(SemanticPattern(name=name, description=str(raw["description"]), threshold=threshold, params=params))
+        params = {k: v for k, v in raw.items() if k not in {"name", "phrase", "description", "threshold"}}
+        patterns.append(SemanticPattern(name=name, description=str(phrase), threshold=threshold, params=params))
     return tuple(patterns)
 
 
-def _parse_fides(raw_fides: Any) -> tuple[FidesCheck, ...]:
-    if raw_fides is None:
+def _parse_llm_checks(raw_checks: Any, section: str) -> tuple[FidesCheck, ...]:
+    if raw_checks is None:
         return ()
-    if not isinstance(raw_fides, list):
-        raise RuleValidationError("fides must be a list")
+    if not isinstance(raw_checks, list):
+        if not isinstance(raw_checks, dict):
+            raise RuleValidationError(f"{section} must be a list or mapping")
+        raw_checks = [
+            {"name": str(raw_name), **(raw if isinstance(raw, dict) else {"query": raw})}
+            for raw_name, raw in raw_checks.items()
+        ]
     checks: list[FidesCheck] = []
     seen: set[str] = set()
-    for raw in raw_fides:
-        if not isinstance(raw, dict) or "name" not in raw or "prompt" not in raw:
-            raise RuleValidationError("every fides check needs name and prompt")
+    for raw in raw_checks:
+        if not isinstance(raw, dict) or "name" not in raw:
+            raise RuleValidationError(f"every {section} check needs name")
         name = str(raw["name"])
         if name in seen:
-            raise RuleValidationError(f"Duplicate fides check name: {name}")
+            raise RuleValidationError(f"Duplicate {section} check name: {name}")
         seen.add(name)
-        threshold = _threshold(raw.get("threshold", 0.5), "fides", name)
-        params = {k: v for k, v in raw.items() if k not in {"name", "prompt", "threshold"}}
-        checks.append(FidesCheck(name=name, prompt=str(raw["prompt"]), threshold=threshold, params=params))
+        query = raw.get("query", raw.get("prompt"))
+        if query is None:
+            raise RuleValidationError(f"{section} check {name} needs query")
+        threshold = _threshold(raw.get("threshold", 0.5), section, name)
+        params = {k: v for k, v in raw.items() if k not in {"name", "query", "prompt", "threshold"}}
+        checks.append(FidesCheck(name=name, prompt=str(query), threshold=threshold, params=params))
     return tuple(checks)
 
 
@@ -282,6 +303,10 @@ def _condition_references(condition: str, names_by_namespace: dict[str, set[str]
 
 
 def validate_rule(data: dict[str, Any]) -> RuleDefinition:
+    if "fixtures" in data:
+        raise RuleValidationError("fixtures are no longer part of the WARDEN rule grammar")
+    if "llm" in data and "fides" in data:
+        raise RuleValidationError("Use llm; fides is only accepted as a deprecated alias")
     missing = sorted(_REQUIRED_FIELDS - set(data))
     if missing:
         raise RuleValidationError(f"Missing required rule fields: {missing}")
@@ -296,16 +321,18 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
     signals = _parse_signals(data.get("signals"))
     keywords = _parse_keywords(data.get("keywords"))
     semantics = _parse_semantics(data.get("semantics"))
-    fides_checks = _parse_fides(data.get("fides"))
+    llm_section = "llm" if "llm" in data else "fides"
+    fides_checks = _parse_llm_checks(data.get(llm_section), llm_section)
     if not (signals or keywords or semantics or fides_checks):
         raise RuleValidationError(
-            "rule needs at least one detection section: signals, keywords, semantics, or fides"
+            "rule needs at least one detection section: signals, keywords, semantics, or llm"
         )
 
     names_by_namespace = {
         "signals": {item.name for item in signals},
         "keywords": {item.name for item in keywords},
         "semantics": {item.name for item in semantics},
+        "llm": {item.name for item in fides_checks},
         "fides": {item.name for item in fides_checks},
     }
     valid_refs = set(names_by_namespace["signals"])
@@ -321,7 +348,6 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
     meta = data.get("meta") or {}
     if not isinstance(meta, dict):
         raise RuleValidationError("meta must be a mapping when provided")
-    fixtures = data.get("fixtures") or {}
 
     return RuleDefinition(
         id=str(data.get("id") or _slug(name)),
@@ -334,7 +360,7 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
         signals=signals,
         condition=condition,
         recommended_action=action,
-        fixtures={"positive": list(fixtures.get("positive", [])), "negative": list(fixtures.get("negative", []))},
+        fixtures={"positive": [], "negative": []},
         safety_notes=str(data.get("safety_notes", "")),
         meta=dict(meta),
         keywords=keywords,

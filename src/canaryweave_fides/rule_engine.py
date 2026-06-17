@@ -41,6 +41,7 @@ class RuleEngine:
                 "signals": signal_values,
                 "keywords": keyword_values,
                 "semantics": semantic_values,
+                "llm": fides_false_values,
                 "fides": fides_false_values,
             }
             baseline_hit = self._eval_condition(rule.condition, namespaces)
@@ -64,6 +65,7 @@ class RuleEngine:
             referenced_fides = self._referenced_fides_checks(rule.condition, rule.fides_checks)
             if referenced_fides and not baseline_hit:
                 fides_true_namespaces = dict(namespaces)
+                fides_true_namespaces["llm"] = {check.name: True for check in rule.fides_checks}
                 fides_true_namespaces["fides"] = {check.name: True for check in rule.fides_checks}
                 if self._eval_condition(rule.condition, fides_true_namespaces):
                     pending_fides.append(PendingFidesCheck(
@@ -121,20 +123,20 @@ class RuleEngine:
 
         def take_wildcard(match: re.Match[str]) -> str:
             namespace = match.group(2)
-            if namespace == "fides":
+            if namespace in {"llm", "fides"}:
                 referenced.update(checks_by_name)
             return " "
 
         def take_list(match: re.Match[str]) -> str:
             for item in match.group(2).split(","):
                 token = item.strip()
-                if token.startswith("fides."):
-                    referenced.add(token.removeprefix("fides."))
+                if token.startswith(("llm.", "fides.")):
+                    referenced.add(token.split(".", 1)[1])
             return " "
 
         residual = _WILDCARD_QUANTIFIER_RE.sub(take_wildcard, residual)
         residual = _LIST_QUANTIFIER_RE.sub(take_list, residual)
-        referenced.update(name for namespace, name in _NAMESPACED_REF_RE.findall(residual) if namespace == "fides")
+        referenced.update(name for namespace, name in _NAMESPACED_REF_RE.findall(residual) if namespace in {"llm", "fides"})
         return tuple(check for check in checks if check.name in referenced)
 
     def _eval_signal(self, signal: SignalDefinition, events: tuple[TraceEvent, ...], policy: PolicyContext) -> bool:
@@ -215,7 +217,7 @@ class RuleEngine:
                 return "True" if table[name] else "False"
             if namespace in {"signals", "keywords", "semantics"}:
                 raise RuleEngineError(f"Unknown condition token: {namespace}.{name}")
-            # FIDES is validated by the schema but is not evaluated by this
+            # LLM/FIDES checks are validated by the schema but are not evaluated by this
             # deterministic engine. It stays false here and is handled downstream.
             return "False"
 

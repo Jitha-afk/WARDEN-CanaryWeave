@@ -15,9 +15,4 @@ fides:
     threshold: 0.65
 condition: (hidden_unicode_present) or fides.hidden_unicode_judge
 recommended_action: quarantine
-fixtures:
-  positive:
-    - hidden_unicode_structure
-  negative:
-    - host_authorized_tool_plan
 safety_notes: Synthetic text with a zero-width separator only.

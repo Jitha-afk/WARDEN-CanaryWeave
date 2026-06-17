@@ -42,9 +42,4 @@ signals:
     feature: protected_context_extraction_shape
 condition: (signals.untrusted_origin and signals.protected_context_extraction_shape) or semantics.protected_context_disclosure_intent or fides.protected_context_judge
 recommended_action: quarantine
-fixtures:
-  positive:
-    - synthetic_protected_context_extraction
-  negative:
-    - bnm.public_documentation_request
 safety_notes: Structural protected-context indicators only; no protected prompt text or private schemas.

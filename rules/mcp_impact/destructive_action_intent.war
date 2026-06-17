@@ -36,9 +36,4 @@ signals:
     relation: not_in_allowed_capabilities
 condition: (signals.destructive_action_shape and signals.capability_not_granted) or semantics.irreversible_state_change_intent or fides.destructive_action_judge
 recommended_action: block_and_audit
-fixtures:
-  positive:
-    - synthetic_destructive_agent_action
-  negative:
-    - bnm.approved_temp_cleanup
 safety_notes: Structural destructive-intent indicators only; no executable destructive commands.

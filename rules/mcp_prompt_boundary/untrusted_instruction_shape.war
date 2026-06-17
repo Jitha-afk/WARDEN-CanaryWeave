@@ -27,9 +27,4 @@ signals:
     feature: untrusted_instruction_shape
 condition: (untrusted_origin and instruction_shape_present) or semantics.untrusted_instruction_intent or fides.untrusted_instruction_judge
 recommended_action: quarantine
-fixtures:
-  positive:
-    - untrusted_instruction_shape
-  negative:
-    - host_authorized_tool_plan
 safety_notes: Structural demonstration text only; excludes payload examples.

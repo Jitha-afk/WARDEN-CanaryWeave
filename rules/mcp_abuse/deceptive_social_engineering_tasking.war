@@ -48,9 +48,4 @@ signals:
     feature: deception_shape
 condition: (signals.untrusted_origin and signals.social_engineering_shape and signals.deception_shape) or semantics.deceptive_targeting_intent or fides.deceptive_tasking_judge
 recommended_action: quarantine
-fixtures:
-  positive:
-    - synthetic_deceptive_social_engineering_tasking
-  negative:
-    - bnm.authorized_awareness_training
 safety_notes: Structural social-engineering indicators only; no lure text, target details, or operational instructions.

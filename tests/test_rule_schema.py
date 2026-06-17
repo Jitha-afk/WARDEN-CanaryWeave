@@ -33,11 +33,64 @@ def test_validate_rule_rejects_unknown_condition_signal():
         "signals": [{"name": "known", "type": "event_field_equals", "field": "origin", "value": "server"}],
         "condition": "known and missing_signal",
         "recommended_action": "block_and_audit",
-        "fixtures": {"positive": [], "negative": []},
         "safety_notes": "Synthetic structural fixture only.",
     }
     with pytest.raises(RuleValidationError, match="missing_signal"):
         validate_rule(rule_dict)
+
+
+def test_validate_rule_accepts_keyed_sections_and_llm_query():
+    rule = validate_rule({
+        "name": "CleanGrammar",
+        "severity": "high",
+        "keywords": {"execution_literal": "run this command"},
+        "semantics": {
+            "execution_intent": {
+                "phrase": "requests command, code, script, or shell execution",
+                "threshold": 0.7,
+            }
+        },
+        "llm": {
+            "unsafe_execution_judge": {
+                "query": "Do redacted facts show untrusted code execution?",
+                "threshold": 0.65,
+            }
+        },
+        "signals": {
+            "capability_not_granted": {
+                "type": "capability_policy",
+                "relation": "not_in_allowed_capabilities",
+            }
+        },
+        "condition": "signals.capability_not_granted and (any of keywords.* or semantics.execution_intent or llm.unsafe_execution_judge)",
+    })
+
+    assert rule.id == "cleangrammar"
+    assert rule.signals[0].name == "capability_not_granted"
+    assert rule.semantics[0].description.startswith("requests command")
+    assert rule.fides_checks[0].prompt.startswith("Do redacted")
+
+
+def test_validate_rule_accepts_deprecated_fides_alias():
+    rule = validate_rule({
+        "name": "AliasGrammar",
+        "severity": "medium",
+        "fides": {"policy_judge": {"prompt": "Assess redacted policy facts.", "threshold": 0.5}},
+        "condition": "fides.policy_judge",
+    })
+
+    assert rule.fides_checks[0].name == "policy_judge"
+
+
+def test_validate_rule_rejects_fixtures_section():
+    with pytest.raises(RuleValidationError, match="fixtures"):
+        validate_rule({
+            "name": "FixtureRule",
+            "severity": "low",
+            "keywords": {"x": "safe"},
+            "condition": "keywords.x",
+            "fixtures": {"positive": ["unused"]},
+        })
 
 
 def test_load_rules_rejects_duplicate_rule_ids(tmp_path):
