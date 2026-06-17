@@ -1,0 +1,48 @@
+// CanaryWeave WARDEN signature ruleset: host & artifact discovery signatures (ATT&CK TA0007).
+//
+// kind: signature rules use only the patterns layer — public, generic
+// host indicators (ATT&CK paths/binaries/tropes), never dataset strings.
+
+rule WindowsDiscoveryArtifacts {
+    meta:
+        id          = cwfr-ppe-0013
+        kind        = signature
+        version     = 0.1.0
+        severity    = medium
+        scope       = text_field
+        action      = audit
+        technique   = T1082 (Discovery, analogical)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "Access to Windows event logs and configuration-management client artifacts."
+    patterns:
+        $windows_event_logs = /\\system32\\config\\(AppEvent\.Evt|SecEvent\.Evt)/i
+        $sccm_client_files  = /\\[Ww]indows\\CCM\\(SCClient\.exe|Logs\\.*\.log)/i
+    condition:
+        any of patterns
+}
+
+rule UnixSystemDiscoveryFiles {
+    meta:
+        id          = cwfr-ppe-0019
+        kind        = signature
+        version     = 0.1.0
+        severity    = medium
+        scope       = text_field
+        action      = audit
+        technique   = T1083 (Discovery, direct)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "Reads of system, network, mount, log, web-server, and proc discovery files on Unix."
+    patterns:
+        $network_config    = //etc/(hosts|hostname|resolv\.conf|network/interfaces)/i
+        $php_config        = //etc/php.*/(php\.ini|conf\.d/)/i
+        $backup_artifacts  = /\.(bak|backup|old|orig|save|swp|~)$/i
+        $nsswitch_config   = //etc/nsswitch\.conf/i
+        $mount_tables      = //etc/(fstab|mtab|exports)/i
+        $auth_logs         = //var/log/(auth\.log|secure|syslog|messages|faillog|lastlog)/i
+        $web_server_config = //etc/(apache2|httpd|nginx)/(sites-(enabled|available)/|conf\.d/|\.htpasswd)/i
+        $proc_filesystem   = //proc/(self|[0-9]+)/(environ|cmdline|maps|mem|fd/)/i
+    condition:
+        any of patterns
+}

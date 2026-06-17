@@ -196,7 +196,7 @@ def _rule_engine_for_check(args: argparse.Namespace) -> RuleEngine | None:
     if getattr(args, "rule_file", None) is not None:
         from .rule_loader import load_rule_file
 
-        return RuleEngine((load_rule_file(args.rule_file),))
+        return RuleEngine(load_rule_file(args.rule_file))
     return _rule_engine_for_ids(args.rule_id)
 
 

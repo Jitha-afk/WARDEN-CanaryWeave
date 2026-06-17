@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-from .rule_schema import FidesCheck
+from .rule_schema import JudgeCheck
 
 
 @dataclass(frozen=True)
@@ -60,7 +60,7 @@ class PendingFidesCheck:
     rule_id: str
     rule_name: str
     action: str
-    checks: tuple[FidesCheck, ...]
+    checks: tuple[JudgeCheck, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {

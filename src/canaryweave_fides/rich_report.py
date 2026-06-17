@@ -73,7 +73,7 @@ def render_warden_rule_check(
         meta.add_row("Description", rule.description)
         meta.add_row("Author", str(rule.meta.get("author", "Project Open Hand Monk")))
         meta.add_row("Severity", rule.severity)
-        meta.add_row("Action", rule.recommended_action)
+        meta.add_row("Action", rule.action)
     if prompt_included:
         meta.add_row("Prompt", f'"{prompt}"')
     else:
@@ -85,9 +85,9 @@ def render_warden_rule_check(
     patterns.add_column(style="bold magenta", no_wrap=True)
     patterns.add_column(style="white")
     patterns.add_row("Signals", _bullet_list(_matched_or_all_signals(rule, decision)))
-    patterns.add_row("Keywords", _bullet_list([f"${item.name}" for item in (rule.keywords if rule else ())]))
+    patterns.add_row("Patterns", _bullet_list([f"${item.name}" for item in (rule.patterns if rule else ())]))
     patterns.add_row("Semantics", _bullet_list([f"${item.name}" for item in (rule.semantics if rule else ())]))
-    fides_items = [f"${item.name}" for item in (rule.fides_checks if rule else ())]
+    fides_items = [f"${item.name}" for item in (rule.judge_checks if rule else ())]
     fides_items.append(_llm_verdict_label(llm_verdict, result))
     patterns.add_row("FIDES", _bullet_list(fides_items))
     console.print(Panel(patterns, title="Matching Patterns", box=box.ROUNDED, border_style="magenta"))
@@ -106,7 +106,7 @@ def render_warden_rule_check(
 
 def _selected_rules(*, rule_engine: RuleEngine | None, rule_path: Path | None) -> list[RuleDefinition]:
     if rule_path is not None:
-        return [load_rule_file(rule_path)]
+        return list(load_rule_file(rule_path))
     if rule_engine is not None:
         return list(rule_engine.rules)
     return list(load_rules(rules_root()))

@@ -1,0 +1,25 @@
+// CanaryWeave WARDEN signature ruleset: persistence-mechanism signatures (ATT&CK TA0003).
+//
+// kind: signature rules use only the patterns layer — public, generic
+// host indicators (ATT&CK paths/binaries/tropes), never dataset strings.
+
+rule UnixPersistenceMechanisms {
+    meta:
+        id          = cwfr-ppe-0017
+        kind        = signature
+        version     = 0.1.0
+        severity    = high
+        scope       = text_field
+        action      = block_and_audit
+        technique   = T1543 (Persistence, direct)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "Init/systemd services, cron/at jobs, and PAM configuration used for persistence."
+    patterns:
+        $init_systemd_services = //(etc/init\.d|etc/systemd/system|lib/systemd/system)//i
+        $cron_at_jobs          = //etc/(cron\.\w+|crontab|anacrontab|at\.\w+)/i
+        $cron_spool            = //var/spool/cron/(crontabs/|atjobs/)/i
+        $pam_config            = //etc/pam\.d/(common-auth|system-auth|password-auth)/i
+    condition:
+        any of patterns
+}

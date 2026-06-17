@@ -1,75 +1,90 @@
 schema_version: 1
 ruleset_id: canaryweave_rules
-version: 0.2.0
+version: 0.3.0
 purpose: >-
-  Manifest for the defender-maintainable WARDEN policy rules used by the
-  pre-context gate. Current executable rules live under the top-level rules/
-  directory in .war YAML format.
+  Manifest for the defender-maintainable WARDEN rules used by the pre-context
+  gate. Rules are authored in the custom .war detection DSL (a YARA-style,
+  multi-rule-per-file format). Policy-tier rulesets reason over structured
+  trust/capability/flow facts and may route per-rule judge questions to FIDES;
+  signature-tier rulesets carry patterns-only text indicators. Executable rules
+  live under the top-level rules/ directory.
 
 safety:
   no_raw_payload_signatures: true
   no_dataset_specific_payload_strings: true
-  public_fixtures_synthetic_only: true
+  public_cases_synthetic_only: true
   inspect_structured_policy_facts: true
 
-rule_sources:
-  - path: rules/mcp_agentic_misuse/server_sampling_origin_boundary.war
-    policy_shape: untrusted_origin_requests_ungranted_capability
-    transferable: true
-  - path: rules/mcp_agentic_misuse/canary_boundary_crossing.war
-    policy_shape: canary_data_flows_to_unapproved_sink
-    transferable: true
-  - path: rules/mcp_prompt_boundary/untrusted_instruction_shape.war
-    policy_shape: untrusted_content_has_instruction_shape
-    transferable: true
-  - path: rules/mcp_suspicious_structure/hidden_unicode_structure.war
-    policy_shape: hidden_structure_in_untrusted_content
-    transferable: true
-  - path: rules/mcp_data_flow/credential_or_secret_exposure.war
-    policy_shape: credential_or_secret_exposure
-    transferable: true
-  - path: rules/mcp_resource_boundary/path_or_uri_boundary_escape.war
-    policy_shape: path_or_uri_boundary_escape
-    transferable: true
-  - path: rules/mcp_execution/command_or_code_execution_request.war
-    policy_shape: untrusted_code_or_command_request
-    transferable: true
-  - path: rules/mcp_network/unapproved_network_request.war
-    policy_shape: unapproved_network_or_api_request
-    transferable: true
-  - path: rules/mcp_prompt_boundary/protected_context_extraction.war
-    policy_shape: protected_prompt_policy_or_schema_extraction
-    transferable: true
-  - path: rules/mcp_impact/destructive_action_intent.war
-    policy_shape: unauthorized_destructive_agent_action
-    transferable: true
-  - path: rules/mcp_abuse/deceptive_social_engineering_tasking.war
-    policy_shape: deceptive_social_engineering_or_recon_tasking
-    transferable: true
+# Policy-tier rulesets: each .war file is one ruleset holding several rules.
+policy_rulesets:
+  - path: rules/policy/agentic_boundary.war
+    theme: mcp_trust_boundaries
+    rules:
+      - id: cwfr-0001
+        name: ServerSamplingOriginBoundary
+        policy_shape: untrusted_origin_requests_ungranted_capability
+      - id: cwfr-0002
+        name: CanaryBoundaryCrossing
+        policy_shape: canary_data_flows_to_unapproved_sink
+  - path: rules/policy/prompt_boundary.war
+    theme: untrusted_prompt_shape
+    rules:
+      - id: cwfr-0003
+        name: UntrustedInstructionShape
+        policy_shape: untrusted_content_has_instruction_shape
+      - id: cwfr-0004
+        name: HiddenUnicodeStructure
+        policy_shape: hidden_structure_in_untrusted_content
+      - id: cwfr-0108
+        name: ProtectedContextExtraction
+        policy_shape: protected_prompt_policy_or_schema_extraction
+      - id: cwfr-0110
+        name: DeceptiveSocialEngineeringTasking
+        policy_shape: deceptive_social_engineering_or_recon_tasking
+  - path: rules/policy/capability_control.war
+    theme: capability_and_resource_authority
+    rules:
+      - id: cwfr-0104
+        name: CredentialOrSecretExposure
+        policy_shape: credential_or_secret_exposure
+      - id: cwfr-0105
+        name: PathOrUriBoundaryEscape
+        policy_shape: path_or_uri_boundary_escape
+      - id: cwfr-0106
+        name: CommandOrCodeExecutionRequest
+        policy_shape: untrusted_code_or_command_request
+      - id: cwfr-0107
+        name: UnapprovedNetworkRequest
+        policy_shape: unapproved_network_or_api_request
+      - id: cwfr-0109
+        name: DestructiveActionIntent
+        policy_shape: unauthorized_destructive_agent_action
 
+# Signature-tier rulesets (patterns-only text indicators) live alongside under
+# rules/signature/*.war; their per-rule technique anchors carry the taxonomy.
+signature_rulesets_root: rules/signature
+
+# meta keys every rule declares (the .war DSL validates these on load).
 required_rule_metadata:
   - id
-  - name
+  - kind
   - version
-  - category
   - severity
   - scope
+  - action
+  - technique
   - description
-  - signals
-  - condition
-  - recommended_action
-  - fixtures
-  - safety_notes
+  - safety
 
 reason_code_mapping:
-  server_sampling_origin_boundary: untrusted_origin_policy_override
-  canary_boundary_crossing: canary_boundary_violation
-  untrusted_instruction_shape: untrusted_instruction_shape
-  hidden_unicode_structure: hidden_structure_present
-  credential_or_secret_exposure: credential_or_secret_exposure
-  path_or_uri_boundary_escape: resource_boundary_escape
-  command_or_code_execution_request: untrusted_execution_request
-  unapproved_network_request: unapproved_network_request
-  protected_context_extraction: protected_context_exfiltration
-  destructive_action_intent: destructive_agent_action
-  deceptive_social_engineering_tasking: deceptive_social_engineering_tasking
+  cwfr-0001: untrusted_origin_policy_override
+  cwfr-0002: canary_boundary_violation
+  cwfr-0003: untrusted_instruction_shape
+  cwfr-0004: hidden_structure_present
+  cwfr-0104: credential_or_secret_exposure
+  cwfr-0105: resource_boundary_escape
+  cwfr-0106: untrusted_execution_request
+  cwfr-0107: unapproved_network_request
+  cwfr-0108: protected_context_exfiltration
+  cwfr-0109: destructive_agent_action
+  cwfr-0110: deceptive_social_engineering_tasking

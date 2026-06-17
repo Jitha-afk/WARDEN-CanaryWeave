@@ -13,10 +13,12 @@ This mirrors the OPA/Rego philosophy: decouple policy decision-making from enfor
 ## What this POC demonstrates
 
 - Baseline regex guard: fast but shallow pattern matching over visible text.
-- Structured rule guard: YAML rules with metadata, named signals, boolean conditions, categories, and synthetic fixtures.
-- FIDES/IFC layer: optional information-flow checks for trusted-action and permitted-flow policies.
+- WARDEN structured rules: YARA-style `.war` rulesets with `rule Name { ... }` blocks, `meta` technique anchors, named detection layers, and boolean conditions over a NormalizedTrace.
+- Signature tier: `kind = signature` rules use only text `patterns:` over generic, public-safe indicators.
+- Policy tier: `kind = policy` rules reason over structured `signals:`, engine-scored `semantics:`, and optional `judge:` questions.
+- FIDES/IFC layer: optional information-flow checks for trusted-action and permitted-flow policies, including per-rule judge questions when WARDEN deterministic layers miss.
 - `query_llm`: deterministic preflight, quarantined model stub, postflight, optional FIDES/IFC, and structured result.
-- Smoke metrics: `no_guard`, `regex_guard`, `structured_rule_guard`, and `rules_plus_fides_ifc` compared on the same synthetic cases.
+- Smoke metrics: `no_guard`, `regex_baseline`, `yara_rules`, and `rules_plus_fides` compared on the same synthetic cases.
 
 ## Why structured rules over regex
 
@@ -24,7 +26,9 @@ Regex answers: does this string contain a known pattern?
 
 The structured rule layer answers: did a server-originated sampling result propose a tool-plan-shaped action that was not granted by the host policy? Did a canary appear outside an allowed sink? Did an untrusted field contain instruction-shaped structure? Did hidden text structure appear in an MCP-visible field?
 
-That lets defenders write higher-quality detections against origin, surface, capability, sink, labels, and event shape rather than only matching words.
+Defenders write these detections as `.war` rulesets: one or more `rule <Name> {` blocks with `meta:`, `patterns:`, `signals:`, `semantics:`, `judge:`, and `condition:` sections. The rule `kind` is an epistemic-power claim: signatures may use only `patterns:`, while policies must use at least one of `signals:`, `semantics:`, or `judge:` and may also use patterns. Every declared `$term` must be used in the condition, and every condition reference must be declared, so rules stay reviewable and free of dead evidence.
+
+That lets defenders write higher-quality detections against origin, surface, capability, sink, labels, event shape, semantic intent, and judge checks rather than only matching words.
 
 ## NormalizedTrace
 
@@ -60,7 +64,7 @@ Prerequisites on a fresh machine:
 From this directory:
 
 ```bash
-uv run --with pytest --with PyYAML pytest -q
+uv run --with pytest pytest -q
 uv run python -m canaryweave_fides.cli --fixture-set smoke --output artifacts/smoke_report.json
 uv run python scripts/check_markdown_fences.py
 uv run python scripts/check_public_artifacts.py
@@ -135,7 +139,7 @@ canaryweave-fides/
 │   ├── prompts/           # FIDES judge contract, provider disabled by default
 │   └── yara/              # regex baseline and YARA-style rule manifests
 ├── docs/                  # thesis, rules, datasets, judge, eval guidance
-├── rules/                 # .war structured rules
+├── rules/                 # .war YARA-style rulesets
 ├── src/canaryweave_fides/ # rule engine, FIDES/IFC, query_llm, metrics
 ├── tests/                 # pytest suite
 ├── research/              # source-grounded research notes
@@ -145,6 +149,7 @@ canaryweave-fides/
 ```
 
 WARDEN is the deterministic rule stack: regex baseline, YARA-style manifests,
-current `.war` rules, and future policy engines. FIDES is the separate
-judge layer for deterministic misses. Public configs and reports must remain
-free of raw dataset payloads, raw prompts, and judge transcripts.
+`.war` signature and policy rules, and future policy engines. FIDES is the
+separate judge layer for deterministic policy misses; its per-rule questions
+come from `judge:` entries. Public configs and reports must remain free of raw
+dataset payloads, raw prompts, and judge transcripts.

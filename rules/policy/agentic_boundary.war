@@ -1,0 +1,52 @@
+// CanaryWeave WARDEN policy ruleset: agentic trust boundaries.
+//
+// These rules guard the MCP origin-authority boundary and the canary data-flow
+// boundary — the two places where untrusted server content tries to act with
+// host authority or pull protected markers past an allowed sink.
+
+rule ServerSamplingOriginBoundary {
+    meta:
+        id          = cwfr-0001
+        kind        = policy
+        version     = 0.2.0
+        severity    = high
+        scope       = event_window
+        action      = block_and_audit
+        technique   = T1059 (Execution, analogical)
+        defense     = D3-AM (Access Mediation)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects server-originated sampled content being treated as host-authoritative tool policy."
+        safety      = "Synthetic structural facts only; no raw payload text or live sinks."
+    signals:
+        $origin_server_sampling = event_field_equals(origin, server_sampling)
+        $tool_plan_shape        = schema_shape(tool_plan_like_json)
+        $no_grant               = capability(not_in_allowed)
+    semantics:
+        $authority_intent = "Untrusted content is attempting to act as host or user authority for tool dispatch." (0.70)
+    judge:
+        $authority_judge = "Assess whether redacted facts show untrusted content causing a consequential tool action without authority." (0.65)
+    condition:
+        ($origin_server_sampling and $tool_plan_shape and $no_grant) or $authority_intent or $authority_judge
+}
+
+rule CanaryBoundaryCrossing {
+    meta:
+        id          = cwfr-0002
+        kind        = policy
+        version     = 0.1.0
+        severity    = critical
+        scope       = trace
+        action      = block_and_audit
+        technique   = AML.T0025 (Exfiltration, analogical)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects a benign canary marker appearing outside an allowed event or sink boundary."
+        safety      = "Uses benign synthetic marker labels only."
+    signals:
+        $canary_outside_sink = canary_flow(outside_allowed_sink)
+    judge:
+        $canary_judge = "Assess whether redacted facts indicate a protected canary marker moved outside an allowed boundary." (0.65)
+    condition:
+        $canary_outside_sink or $canary_judge
+}

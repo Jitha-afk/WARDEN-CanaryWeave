@@ -1,0 +1,45 @@
+// CanaryWeave WARDEN signature ruleset: privilege-escalation signatures (ATT&CK TA0004).
+//
+// kind: signature rules use only the patterns layer — public, generic
+// host indicators (ATT&CK paths/binaries/tropes), never dataset strings.
+
+rule WindowsAlwaysInstallElevated {
+    meta:
+        id          = cwfr-ppe-0012
+        kind        = signature
+        version     = 0.1.0
+        severity    = critical
+        scope       = text_field
+        action      = block_and_audit
+        technique   = T1548 (Privilege Escalation, direct)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "AlwaysInstallElevated policy abuse for privilege escalation on Windows."
+    patterns:
+        $always_install_elevated = /SOFTWARE\\Policies\\Microsoft\\[Ww]indows\\Installer.*AlwaysInstallElevated/i
+    condition:
+        any of patterns
+}
+
+rule UnixPrivilegeEscalation {
+    meta:
+        id          = cwfr-ppe-0018
+        kind        = signature
+        version     = 0.1.0
+        severity    = critical
+        scope       = text_field
+        action      = block_and_audit
+        technique   = T1548 (Privilege Escalation, direct)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "SUID/capability discovery, sudoers/NFS misconfig, sudo tickets, and docker socket abuse."
+    patterns:
+        $capability_enumeration = /getcap\s+-r\s+//i
+        $suid_sgid_search       = /find\s+/\s+.*-perm\s+[+-]?[46]000/i
+        $sudo_timestamp         = //var/run/sudo/ts//i
+        $sudoers                = //etc/(sudoers|sudoers\.d/)/i
+        $nfs_no_root_squash     = //etc/exports.*no_root_squash/i
+        $docker_socket          = //var/run/docker\.sock/i
+    condition:
+        any of patterns
+}

@@ -2,8 +2,8 @@ schema_version: 1
 ruleset_id: baseline_regex
 version: 0.1.0
 purpose: >-
-  Public-safe regex baseline manifest for comparison against YARA-style and
-  structured policy rules. Patterns operate only on redacted text features and
+  Public-safe regex baseline manifest for comparison against the signature-tier
+  and policy-tier .war rules. Patterns operate only on redacted text features and
   safe structural markers.
 
 safety:

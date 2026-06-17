@@ -1,3 +1,27 @@
+"""Schema and validation for the CanaryWeave WARDEN rule DSL.
+
+A ``.war`` file is a *ruleset*: an ordered set of ``rule Name { ... }`` blocks.
+Each rule carries an identity envelope (``meta:``) plus up to four detection
+layers (``patterns``, ``signals``, ``semantics``, ``judge``) and a boolean
+``condition`` over the terms those layers declare.
+
+The DSL grammar lives in :mod:`canaryweave_fides.rule_loader` (the tokenizer and
+block parser). This module owns *semantics*: it consumes the structured dict a
+parsed rule produces and validates it into a frozen :class:`RuleDefinition`.
+
+The contract enforced here:
+
+* ``meta.id`` (``cwfr-*``), ``meta.kind`` (``signature``/``policy``),
+  ``meta.severity`` and at least one ``meta.technique`` anchor are required.
+* ``kind`` is an epistemic-power claim: ``signature`` rules may use *only* the
+  text ``patterns`` layer; ``policy`` rules must use at least one relational
+  layer (``signals``/``semantics``/``judge``).
+* Every ``$term`` declared by a layer must be referenced by ``condition`` and
+  every ``$term`` referenced must be declared (no dead terms).
+* The technique anchor's MITRE framework is inferred from the id prefix and its
+  tactic becomes the rule's classification axis.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -11,23 +35,36 @@ class RuleValidationError(ValueError):
 
 _ALLOWED_SEVERITIES = {"low", "medium", "high", "critical"}
 _ALLOWED_ACTIONS = {"allow", "audit", "quarantine", "block_and_audit"}
-_ALLOWED_NAMESPACES = {"signals", "keywords", "semantics", "fides"}
-# Authors only have to declare what a rule actually means: a name, how serious a
-# hit is, the boolean condition, and at least one detection section. Everything
-# else (id, version, category, scope, description, action, fixtures, notes) is
-# optional and defaulted so clean rules stay readable.
-_REQUIRED_FIELDS = {"name", "severity", "condition"}
-_DETECTION_SECTIONS = ("signals", "keywords", "semantics", "fides")
-_BOOLEAN_WORDS = {"and", "or", "not", "true", "false"}
-_NAMESPACED_REF_RE = re.compile(r"\b(signals|keywords|semantics|fides)\.([A-Za-z_][A-Za-z0-9_]*)\b")
-_IDENTIFIER_RE = re.compile(r"(?<!\.)\b[A-Za-z_][A-Za-z0-9_]*\b")
-# `any of <ns>.*` / `all of <ns>.*` and `any of (a, b)` / `all of (a, b)` are the
-# only quantifier shapes the condition grammar understands. They are expanded the
-# same way here (for validation) and in the engine (for evaluation).
-_WILDCARD_QUANTIFIER_RE = re.compile(
-    r"\b(any|all)\s+of\s+(signals|keywords|semantics|fides)\s*\.\s*\*"
+_ALLOWED_KINDS = {"signature", "policy"}
+_ALLOWED_MAPPING_STRENGTHS = {"direct", "analogical"}
+_ID_PREFIX = "cwfr-"
+_DETECTION_LAYERS = ("patterns", "signals", "semantics", "judge")
+# meta keys promoted to typed RuleDefinition fields; everything else survives in
+# the free-form ``meta`` mapping (author, status, source, license, ...).
+_RESERVED_META = {
+    "id",
+    "kind",
+    "version",
+    "severity",
+    "action",
+    "scope",
+    "description",
+    "technique",
+    "defense",
+    "safety",
+}
+
+# Condition grammar. References are bare ``$name`` tokens (YARA-faithful); the
+# only quantifier shapes are ``any|all of <layer>``, ``any|all of them`` and
+# ``any|all of ($a, $b)``. These regexes are shared with the engine so that
+# validation and evaluation expand conditions identically.
+_TERM_RE = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
+_LAYER_QUANTIFIER_RE = re.compile(
+    r"\b(any|all)\s+of\s+(patterns|signals|semantics|judge|them)\b"
 )
 _LIST_QUANTIFIER_RE = re.compile(r"\b(any|all)\s+of\s*\(([^)]*)\)")
+_BOOLEAN_WORDS = {"and", "or", "not", "true", "false"}
+
 _REGEX_FLAG_MAP = {"i": re.I, "m": re.M, "s": re.S, "x": re.X, "a": re.A, "u": re.U}
 
 
@@ -41,7 +78,7 @@ def parse_regex_flags(flags: str) -> int:
     return bits
 
 
-def compile_keyword_regex(pattern: str, flags: str = "") -> "re.Pattern[str]":
+def compile_pattern_regex(pattern: str, flags: str = "") -> "re.Pattern[str]":
     try:
         return re.compile(pattern, parse_regex_flags(flags))
     except re.error as exc:
@@ -61,20 +98,46 @@ def _split_regex_literal(value: str) -> tuple[str, str] | None:
     return None
 
 
-def _slug(name: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    return slug or "rule"
+def _split_top_level(text: str, separator: str = ",") -> list[str]:
+    """Split ``text`` on ``separator`` characters that sit outside parentheses."""
+    parts: list[str] = []
+    depth = 0
+    current: list[str] = []
+    for char in text:
+        if char == "(":
+            depth += 1
+            current.append(char)
+        elif char == ")":
+            depth = max(0, depth - 1)
+            current.append(char)
+        elif char == separator and depth == 0:
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(char)
+    if current:
+        parts.append("".join(current))
+    return [part.strip() for part in parts if part.strip()]
+
+
+# --------------------------------------------------------------------------- #
+# Dataclasses
+# --------------------------------------------------------------------------- #
 
 
 @dataclass(frozen=True)
-class SignalDefinition:
+class PatternDef:
+    """A text indicator: a regex or an exact (case-insensitive) substring."""
+
     name: str
-    type: str
+    type: str  # "regex" | "exact"
     params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
-class KeywordPattern:
+class SignalDefinition:
+    """A structured fact over normalized trace events (IFC-grade evidence)."""
+
     name: str
     type: str
     params: dict[str, Any] = field(default_factory=dict)
@@ -82,6 +145,8 @@ class KeywordPattern:
 
 @dataclass(frozen=True)
 class SemanticPattern:
+    """An engine-scored similarity check against a natural-language description."""
+
     name: str
     description: str
     threshold: float
@@ -89,7 +154,9 @@ class SemanticPattern:
 
 
 @dataclass(frozen=True)
-class FidesCheck:
+class JudgeCheck:
+    """A natural-language question routed to the FIDES judge on a WARDEN miss."""
+
     name: str
     prompt: str
     threshold: float
@@ -97,33 +164,157 @@ class FidesCheck:
 
 
 @dataclass(frozen=True)
+class TechniqueRef:
+    """A MITRE technique anchor: framework inferred from the id prefix."""
+
+    framework: str  # "ATT&CK" | "ATLAS" | "D3FEND"
+    technique_id: str
+    tactic: str | None = None
+    mapping_strength: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {"framework": self.framework, "technique_id": self.technique_id}
+        if self.tactic:
+            data["tactic"] = self.tactic
+        if self.mapping_strength:
+            data["mapping_strength"] = self.mapping_strength
+        return data
+
+
+@dataclass(frozen=True)
 class RuleDefinition:
     id: str
     name: str
+    kind: str
     version: str
-    category: str
     severity: str
     scope: str
     description: str
-    signals: tuple[SignalDefinition, ...]
+    action: str
+    tactic: str
+    technique: tuple[TechniqueRef, ...]
+    defense: tuple[TechniqueRef, ...]
     condition: str
-    recommended_action: str
-    fixtures: dict[str, list[str]]
-    safety_notes: str
+    safety: str = ""
     meta: dict[str, Any] = field(default_factory=dict)
-    keywords: tuple[KeywordPattern, ...] = ()
+    patterns: tuple[PatternDef, ...] = ()
+    signals: tuple[SignalDefinition, ...] = ()
     semantics: tuple[SemanticPattern, ...] = ()
-    fides_checks: tuple[FidesCheck, ...] = ()
+    judge_checks: tuple[JudgeCheck, ...] = ()
+
+    @property
+    def layer_names(self) -> dict[str, set[str]]:
+        return {
+            "patterns": {item.name for item in self.patterns},
+            "signals": {item.name for item in self.signals},
+            "semantics": {item.name for item in self.semantics},
+            "judge": {item.name for item in self.judge_checks},
+        }
 
 
-def _threshold(value: Any, section: str, name: str) -> float:
+# --------------------------------------------------------------------------- #
+# Layer parsing
+# --------------------------------------------------------------------------- #
+
+
+def _threshold(value: Any, layer: str, name: str) -> float:
     try:
         threshold = float(value)
     except (TypeError, ValueError) as exc:
-        raise RuleValidationError(f"{section}.{name} threshold must be numeric") from exc
+        raise RuleValidationError(f"{layer} ${name} threshold must be numeric") from exc
     if not 0.0 <= threshold <= 1.0:
-        raise RuleValidationError(f"{section}.{name} threshold must be between 0.0 and 1.0")
+        raise RuleValidationError(f"{layer} ${name} threshold must be between 0.0 and 1.0")
     return threshold
+
+
+def _require_name(raw: Any, layer: str) -> str:
+    if not isinstance(raw, dict) or "name" not in raw:
+        raise RuleValidationError(f"every {layer} entry needs a name")
+    return str(raw["name"])
+
+
+def _parse_patterns(raw_patterns: Any) -> tuple[PatternDef, ...]:
+    if raw_patterns is None:
+        return ()
+    if not isinstance(raw_patterns, list):
+        raise RuleValidationError("patterns must be a list")
+    patterns: list[PatternDef] = []
+    for raw in raw_patterns:
+        name = _require_name(raw, "patterns")
+        kind = str(raw.get("type", "exact"))
+        if kind == "regex":
+            pattern = str(raw.get("pattern", ""))
+            flags = str(raw.get("flags", ""))
+            compile_pattern_regex(pattern, flags)
+            patterns.append(PatternDef(name=name, type="regex", params={"pattern": pattern, "flags": flags}))
+        elif kind == "exact":
+            if "value" not in raw:
+                raise RuleValidationError(f"pattern ${name} requires a value")
+            patterns.append(PatternDef(name=name, type="exact", params={"value": str(raw["value"])}))
+        else:
+            raise RuleValidationError(f"Unsupported pattern type: {kind}")
+    return tuple(patterns)
+
+
+def _arg_str(args: list[Any], index: int, ctor: str) -> str:
+    if index >= len(args):
+        raise RuleValidationError(f"signal constructor {ctor}() is missing argument {index + 1}")
+    return str(args[index])
+
+
+def _signal_from_ctor(name: str, ctor: str, args: list[Any]) -> SignalDefinition:
+    """Translate a DSL signal constructor into an engine ``{type, params}`` fact.
+
+    The constructor vocabulary is deliberately small and defender-readable; each
+    one lowers to a primitive the deterministic engine already understands.
+    """
+    if ctor == "feature":
+        feature = _arg_str(args, 0, ctor)
+        value = bool(args[1]) if len(args) > 1 else True
+        return SignalDefinition(name=name, type="feature_flag", params={"feature": feature, "value": value})
+    if ctor == "capability":
+        relation = _arg_str(args, 0, ctor)
+        if relation != "not_in_allowed":
+            raise RuleValidationError(f"capability() only supports not_in_allowed, got {relation!r}")
+        return SignalDefinition(name=name, type="capability_policy", params={"relation": "not_in_allowed_capabilities"})
+    if ctor == "canary_flow":
+        relation = _arg_str(args, 0, ctor)
+        if relation != "outside_allowed_sink":
+            raise RuleValidationError(f"canary_flow() only supports outside_allowed_sink, got {relation!r}")
+        return SignalDefinition(name=name, type="canary_flow", params={"relation": "outside_allowed_sink"})
+    if ctor == "schema_shape":
+        return SignalDefinition(name=name, type="schema_shape", params={"shape": _arg_str(args, 0, ctor)})
+    if ctor == "origin":
+        if not args:
+            raise RuleValidationError("origin() needs at least one origin value")
+        return SignalDefinition(name=name, type="event_field_in", params={"field": "origin", "values": [str(a) for a in args]})
+    if ctor == "sink_in":
+        if not args:
+            raise RuleValidationError("sink_in() needs at least one sink value")
+        return SignalDefinition(name=name, type="event_field_in", params={"field": "sink", "values": [str(a) for a in args]})
+    if ctor == "text_structure":
+        feature = _arg_str(args, 0, ctor)
+        if feature not in {"hidden_unicode", "untrusted_instruction_shape"}:
+            raise RuleValidationError(f"Unsupported text_structure feature: {feature}")
+        return SignalDefinition(name=name, type="text_structure", params={"feature": feature})
+    if ctor == "event_field_equals":
+        return SignalDefinition(
+            name=name,
+            type="event_field_equals",
+            params={"field": _arg_str(args, 0, ctor), "value": args[1] if len(args) > 1 else None},
+        )
+    if ctor == "event_field_in":
+        field_name = _arg_str(args, 0, ctor)
+        rest = args[1:]
+        values = rest[0] if len(rest) == 1 and isinstance(rest[0], list) else list(rest)
+        return SignalDefinition(name=name, type="event_field_in", params={"field": field_name, "values": [str(v) for v in values]})
+    if ctor == "event_field_contains":
+        return SignalDefinition(
+            name=name,
+            type="event_field_contains",
+            params={"field": _arg_str(args, 0, ctor), "value": _arg_str(args, 1, ctor)},
+        )
+    raise RuleValidationError(f"Unsupported signal constructor: {ctor}()")
 
 
 def _parse_signals(raw_signals: Any) -> tuple[SignalDefinition, ...]:
@@ -132,80 +323,12 @@ def _parse_signals(raw_signals: Any) -> tuple[SignalDefinition, ...]:
     if not isinstance(raw_signals, list):
         raise RuleValidationError("signals must be a list")
     signals: list[SignalDefinition] = []
-    seen: set[str] = set()
     for raw in raw_signals:
-        if not isinstance(raw, dict) or "name" not in raw or "type" not in raw:
-            raise RuleValidationError("every signal needs name and type")
-        name = str(raw["name"])
-        if name in seen:
-            raise RuleValidationError(f"Duplicate signal name: {name}")
-        seen.add(name)
-        params = {k: v for k, v in raw.items() if k not in {"name", "type"}}
-        signals.append(SignalDefinition(name=name, type=str(raw["type"]), params=params))
+        name = _require_name(raw, "signals")
+        ctor = str(raw.get("ctor", ""))
+        args = list(raw.get("args", []))
+        signals.append(_signal_from_ctor(name, ctor, args))
     return tuple(signals)
-
-
-def _keyword_from_terse(name: str, value: Any) -> KeywordPattern:
-    """Build a keyword from the terse keyed-by-name form.
-
-    A string value is a ``/regex/flags`` literal when slash-delimited, otherwise a
-    case-insensitive exact substring. A mapping value is the explicit structured
-    form (``type`` plus ``pattern``/``value``/``feature``).
-    """
-    if isinstance(value, str):
-        literal = _split_regex_literal(value)
-        if literal is not None:
-            pattern, flags = literal
-            compile_keyword_regex(pattern, flags)
-            return KeywordPattern(name=name, type="regex", params={"pattern": pattern, "flags": flags})
-        return KeywordPattern(name=name, type="exact", params={"value": value})
-    if isinstance(value, dict):
-        kind = str(value.get("type", "regex" if "pattern" in value else "exact"))
-        if kind == "feature":
-            return KeywordPattern(name=name, type="feature", params={"feature": str(value.get("feature", name))})
-        if kind not in {"exact", "regex"}:
-            raise RuleValidationError(f"Unsupported keyword type: {kind}")
-        params = {k: v for k, v in value.items() if k != "type"}
-        if "pattern" not in params and "value" not in params:
-            raise RuleValidationError(f"keyword {name} requires pattern or value")
-        if kind == "regex":
-            compile_keyword_regex(str(params.get("pattern", params.get("value"))), str(params.get("flags", "")))
-        return KeywordPattern(name=name, type=kind, params=params)
-    raise RuleValidationError(f"keyword {name} must be a string or mapping")
-
-
-def _parse_keywords(raw_keywords: Any) -> tuple[KeywordPattern, ...]:
-    if raw_keywords is None:
-        return ()
-    patterns: list[KeywordPattern] = []
-    seen: set[str] = set()
-    if isinstance(raw_keywords, dict):
-        for raw_name, value in raw_keywords.items():
-            name = str(raw_name)
-            if name in seen:
-                raise RuleValidationError(f"Duplicate keyword name: {name}")
-            seen.add(name)
-            patterns.append(_keyword_from_terse(name, value))
-        return tuple(patterns)
-    if not isinstance(raw_keywords, list):
-        raise RuleValidationError("keywords must be a list or mapping")
-    for raw in raw_keywords:
-        if not isinstance(raw, dict) or "name" not in raw or "type" not in raw:
-            raise RuleValidationError("every keyword needs name and type")
-        name = str(raw["name"])
-        if name in seen:
-            raise RuleValidationError(f"Duplicate keyword name: {name}")
-        seen.add(name)
-        kind = str(raw["type"])
-        if kind not in {"exact", "regex", "feature"}:
-            raise RuleValidationError(f"Unsupported keyword type: {kind}")
-        params = {k: v for k, v in raw.items() if k not in {"name", "type"}}
-        if kind in {"exact", "regex"} and not ("pattern" in params or "value" in params):
-            raise RuleValidationError(f"keyword {name} requires pattern or value")
-        if kind == "regex":
-            compile_keyword_regex(str(params.get("pattern", params.get("value"))), str(params.get("flags", "")))
-        patterns.append(KeywordPattern(name=name, type=kind, params=params))
-    return tuple(patterns)
 
 
 def _parse_semantics(raw_semantics: Any) -> tuple[SemanticPattern, ...]:
@@ -214,130 +337,233 @@ def _parse_semantics(raw_semantics: Any) -> tuple[SemanticPattern, ...]:
     if not isinstance(raw_semantics, list):
         raise RuleValidationError("semantics must be a list")
     patterns: list[SemanticPattern] = []
-    seen: set[str] = set()
     for raw in raw_semantics:
-        if not isinstance(raw, dict) or "name" not in raw or "description" not in raw:
-            raise RuleValidationError("every semantic pattern needs name and description")
-        name = str(raw["name"])
-        if name in seen:
-            raise RuleValidationError(f"Duplicate semantic name: {name}")
-        seen.add(name)
+        name = _require_name(raw, "semantics")
+        if "description" not in raw:
+            raise RuleValidationError(f"semantic ${name} needs a description")
         threshold = _threshold(raw.get("threshold", 0.5), "semantics", name)
-        params = {k: v for k, v in raw.items() if k not in {"name", "description", "threshold"}}
-        patterns.append(SemanticPattern(name=name, description=str(raw["description"]), threshold=threshold, params=params))
+        patterns.append(SemanticPattern(name=name, description=str(raw["description"]), threshold=threshold))
     return tuple(patterns)
 
 
-def _parse_fides(raw_fides: Any) -> tuple[FidesCheck, ...]:
-    if raw_fides is None:
+def _parse_judge(raw_judge: Any) -> tuple[JudgeCheck, ...]:
+    if raw_judge is None:
         return ()
-    if not isinstance(raw_fides, list):
-        raise RuleValidationError("fides must be a list")
-    checks: list[FidesCheck] = []
-    seen: set[str] = set()
-    for raw in raw_fides:
-        if not isinstance(raw, dict) or "name" not in raw or "prompt" not in raw:
-            raise RuleValidationError("every fides check needs name and prompt")
-        name = str(raw["name"])
-        if name in seen:
-            raise RuleValidationError(f"Duplicate fides check name: {name}")
-        seen.add(name)
-        threshold = _threshold(raw.get("threshold", 0.5), "fides", name)
-        params = {k: v for k, v in raw.items() if k not in {"name", "prompt", "threshold"}}
-        checks.append(FidesCheck(name=name, prompt=str(raw["prompt"]), threshold=threshold, params=params))
+    if not isinstance(raw_judge, list):
+        raise RuleValidationError("judge must be a list")
+    checks: list[JudgeCheck] = []
+    for raw in raw_judge:
+        name = _require_name(raw, "judge")
+        if "prompt" not in raw:
+            raise RuleValidationError(f"judge check ${name} needs a prompt")
+        threshold = _threshold(raw.get("threshold", 0.5), "judge", name)
+        checks.append(JudgeCheck(name=name, prompt=str(raw["prompt"]), threshold=threshold))
     return tuple(checks)
 
 
-def _condition_references(condition: str, names_by_namespace: dict[str, set[str]]) -> set[str]:
-    refs: set[str] = set()
-    residual = condition
+# --------------------------------------------------------------------------- #
+# Technique anchor parsing
+# --------------------------------------------------------------------------- #
 
-    def take_wildcard(match: "re.Match[str]") -> str:
-        quant, namespace = match.group(1), match.group(2)
-        names = names_by_namespace.get(namespace, set())
+
+def _infer_framework(technique_id: str) -> str:
+    if technique_id.startswith("AML."):
+        return "ATLAS"
+    if technique_id.startswith("D3-") or technique_id.startswith("D3FEND"):
+        return "D3FEND"
+    if technique_id.startswith("T") and technique_id[1:2].isdigit():
+        return "ATT&CK"
+    raise RuleValidationError(f"Cannot infer MITRE framework from technique id: {technique_id!r}")
+
+
+def _parse_technique_anchor(raw: Any, *, label: str) -> tuple[TechniqueRef, ...]:
+    if raw in (None, ""):
+        return ()
+    if isinstance(raw, (list, tuple)):
+        items = [str(item) for item in raw]
+    else:
+        items = _split_top_level(str(raw))
+    refs: list[TechniqueRef] = []
+    for item in items:
+        match = re.match(r"^([A-Za-z0-9.\-]+)\s*(?:\((.*)\))?\s*$", item)
+        if not match:
+            raise RuleValidationError(f"Malformed {label} anchor: {item!r}")
+        technique_id = match.group(1)
+        framework = _infer_framework(technique_id)
+        tactic: str | None = None
+        mapping_strength: str | None = None
+        inner = match.group(2)
+        if inner:
+            parts = _split_top_level(inner)
+            if parts:
+                tactic = parts[0]
+            if len(parts) > 1:
+                mapping_strength = parts[1].lower()
+                if mapping_strength not in _ALLOWED_MAPPING_STRENGTHS:
+                    raise RuleValidationError(
+                        f"{label} mapping_strength must be direct or analogical, got {mapping_strength!r}"
+                    )
+        refs.append(TechniqueRef(framework=framework, technique_id=technique_id, tactic=tactic, mapping_strength=mapping_strength))
+    return tuple(refs)
+
+
+# --------------------------------------------------------------------------- #
+# Condition validation
+# --------------------------------------------------------------------------- #
+
+
+def _condition_references(condition: str, layer_names: dict[str, set[str]]) -> set[str]:
+    """Return the set of ``$term`` names a condition references.
+
+    Layer and list quantifiers are expanded first; empty-layer quantifiers are a
+    validation error so authors cannot reference a layer they did not declare.
+    """
+    refs: set[str] = set()
+    all_names = set().union(*layer_names.values()) if layer_names else set()
+
+    def take_layer(match: "re.Match[str]") -> str:
+        quant, layer = match.group(1), match.group(2)
+        names = all_names if layer == "them" else layer_names.get(layer, set())
         if not names:
             raise RuleValidationError(
-                f"condition uses '{quant} of {namespace}.*' but rule defines no {namespace}"
+                f"condition uses '{quant} of {layer}' but rule declares no such terms"
             )
-        refs.update(f"{namespace}.{name}" for name in names)
+        refs.update(names)
         return " True "
 
     def take_list(match: "re.Match[str]") -> str:
-        for item in match.group(2).split(","):
-            token = item.strip()
-            if token:
-                refs.add(token)
+        for term in _TERM_RE.findall(match.group(2)):
+            refs.add(term)
         return " True "
 
-    residual = _WILDCARD_QUANTIFIER_RE.sub(take_wildcard, residual)
-    residual = _LIST_QUANTIFIER_RE.sub(take_list, residual)
+    residual = _LIST_QUANTIFIER_RE.sub(take_list, condition)
+    residual = _LAYER_QUANTIFIER_RE.sub(take_layer, residual)
+    refs.update(_TERM_RE.findall(residual))
 
-    refs.update(f"{namespace}.{name}" for namespace, name in _NAMESPACED_REF_RE.findall(residual))
-    stripped = _NAMESPACED_REF_RE.sub(" ", residual)
-    refs.update(
-        token for token in _IDENTIFIER_RE.findall(stripped)
-        if token.lower() not in _BOOLEAN_WORDS and token not in _ALLOWED_NAMESPACES
-    )
+    leftover = _TERM_RE.sub(" ", residual)
+    for token in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", leftover):
+        if token.lower() not in _BOOLEAN_WORDS:
+            raise RuleValidationError(f"condition contains an undelimited term (missing $?): {token!r}")
     return refs
 
 
+# --------------------------------------------------------------------------- #
+# Top-level validation
+# --------------------------------------------------------------------------- #
+
+
+def _meta_str(meta: dict[str, Any], key: str, default: str) -> str:
+    value = meta.get(key, default)
+    return default if value is None else str(value)
+
+
 def validate_rule(data: dict[str, Any]) -> RuleDefinition:
-    missing = sorted(_REQUIRED_FIELDS - set(data))
-    if missing:
-        raise RuleValidationError(f"Missing required rule fields: {missing}")
+    if "name" not in data:
+        raise RuleValidationError("rule is missing its name (the rule header)")
     name = str(data["name"])
-    severity = str(data["severity"])
-    if severity not in _ALLOWED_SEVERITIES:
-        raise RuleValidationError(f"Invalid severity: {severity}")
-    action = str(data.get("recommended_action", "audit"))
-    if action not in _ALLOWED_ACTIONS:
-        raise RuleValidationError(f"Invalid recommended_action: {action}")
-
-    signals = _parse_signals(data.get("signals"))
-    keywords = _parse_keywords(data.get("keywords"))
-    semantics = _parse_semantics(data.get("semantics"))
-    fides_checks = _parse_fides(data.get("fides"))
-    if not (signals or keywords or semantics or fides_checks):
-        raise RuleValidationError(
-            "rule needs at least one detection section: signals, keywords, semantics, or fides"
-        )
-
-    names_by_namespace = {
-        "signals": {item.name for item in signals},
-        "keywords": {item.name for item in keywords},
-        "semantics": {item.name for item in semantics},
-        "fides": {item.name for item in fides_checks},
-    }
-    valid_refs = set(names_by_namespace["signals"])
-    for namespace, names in names_by_namespace.items():
-        valid_refs.update(f"{namespace}.{name}" for name in names)
-
-    condition = str(data["condition"])
-    referenced = _condition_references(condition, names_by_namespace)
-    unknown = sorted(referenced - valid_refs)
-    if unknown:
-        raise RuleValidationError(f"Condition references unknown rule terms: {', '.join(unknown)}")
 
     meta = data.get("meta") or {}
     if not isinstance(meta, dict):
-        raise RuleValidationError("meta must be a mapping when provided")
-    fixtures = data.get("fixtures") or {}
+        raise RuleValidationError("meta must be a mapping")
+
+    rule_id = str(meta.get("id", "")).strip()
+    if not rule_id:
+        raise RuleValidationError(f"rule {name} is missing meta.id")
+    if not rule_id.startswith(_ID_PREFIX):
+        raise RuleValidationError(f"rule id must start with {_ID_PREFIX!r}: {rule_id}")
+
+    kind = str(meta.get("kind", "")).strip()
+    if kind not in _ALLOWED_KINDS:
+        raise RuleValidationError(f"rule {rule_id} needs meta.kind of signature or policy, got {kind!r}")
+
+    severity = str(meta.get("severity", "")).strip()
+    if severity not in _ALLOWED_SEVERITIES:
+        raise RuleValidationError(f"Invalid severity for {rule_id}: {severity!r}")
+
+    action = _meta_str(meta, "action", "audit")
+    if action not in _ALLOWED_ACTIONS:
+        raise RuleValidationError(f"Invalid action for {rule_id}: {action!r}")
+
+    technique = _parse_technique_anchor(meta.get("technique"), label="technique")
+    if not any(ref.framework in {"ATT&CK", "ATLAS"} for ref in technique):
+        raise RuleValidationError(f"rule {rule_id} needs at least one ATT&CK or ATLAS technique anchor")
+    defense = _parse_technique_anchor(meta.get("defense"), label="defense")
+    for ref in defense:
+        if ref.framework != "D3FEND":
+            raise RuleValidationError(f"meta.defense anchors must be D3FEND ids, got {ref.technique_id}")
+
+    patterns = _parse_patterns(data.get("patterns"))
+    signals = _parse_signals(data.get("signals"))
+    semantics = _parse_semantics(data.get("semantics"))
+    judge_checks = _parse_judge(data.get("judge"))
+
+    # kind is an epistemic-power claim, validator-enforced.
+    if kind == "signature":
+        if not patterns:
+            raise RuleValidationError(f"signature rule {rule_id} must declare a patterns layer")
+        if signals or semantics or judge_checks:
+            raise RuleValidationError(
+                f"signature rule {rule_id} may only use patterns; move relational logic to a policy rule"
+            )
+    else:  # policy
+        if not (signals or semantics or judge_checks):
+            raise RuleValidationError(
+                f"policy rule {rule_id} must declare at least one signals, semantics, or judge layer"
+            )
+
+    # Names are unique across all layers (bare-$ references are global per rule).
+    declared: set[str] = set()
+    for layer in (patterns, signals, semantics, judge_checks):
+        for item in layer:
+            if item.name in declared:
+                raise RuleValidationError(f"rule {rule_id} reuses term name ${item.name} across layers")
+            declared.add(item.name)
+
+    layer_names = {
+        "patterns": {item.name for item in patterns},
+        "signals": {item.name for item in signals},
+        "semantics": {item.name for item in semantics},
+        "judge": {item.name for item in judge_checks},
+    }
+
+    condition = str(data.get("condition", "")).strip()
+    if not condition:
+        raise RuleValidationError(f"rule {rule_id} is missing a condition")
+    referenced = _condition_references(condition, layer_names)
+
+    unknown = sorted(referenced - declared)
+    if unknown:
+        raise RuleValidationError(f"condition references undeclared terms: {', '.join('$' + u for u in unknown)}")
+    dead = sorted(declared - referenced)
+    if dead:
+        raise RuleValidationError(
+            f"rule {rule_id} declares terms never used in its condition: {', '.join('$' + d for d in dead)}"
+        )
+
+    tactic = next(
+        (ref.tactic for ref in technique if ref.framework in {"ATT&CK", "ATLAS"} and ref.tactic),
+        "unspecified",
+    )
+
+    leftover_meta = {k: v for k, v in meta.items() if k not in _RESERVED_META}
 
     return RuleDefinition(
-        id=str(data.get("id") or _slug(name)),
+        id=rule_id,
         name=name,
-        version=str(data.get("version", "0.1.0")),
-        category=str(data.get("category", "uncategorized")),
+        kind=kind,
+        version=_meta_str(meta, "version", "0.1.0"),
         severity=severity,
-        scope=str(data.get("scope", "event_window")),
-        description=str(data.get("description", "")),
-        signals=signals,
+        scope=_meta_str(meta, "scope", "event_window"),
+        description=_meta_str(meta, "description", ""),
+        action=action,
+        tactic=tactic,
+        technique=technique,
+        defense=defense,
         condition=condition,
-        recommended_action=action,
-        fixtures={"positive": list(fixtures.get("positive", [])), "negative": list(fixtures.get("negative", []))},
-        safety_notes=str(data.get("safety_notes", "")),
-        meta=dict(meta),
-        keywords=keywords,
+        safety=_meta_str(meta, "safety", ""),
+        meta=leftover_meta,
+        patterns=patterns,
+        signals=signals,
         semantics=semantics,
-        fides_checks=fides_checks,
+        judge_checks=judge_checks,
     )

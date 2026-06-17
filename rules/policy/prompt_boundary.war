@@ -1,0 +1,101 @@
+// CanaryWeave WARDEN policy ruleset: prompt & instruction boundary.
+//
+// These rules watch untrusted MCP-visible content for instruction-injection
+// shape, invisible text structure, protected-context extraction, and deceptive
+// tasking. Each carries a FIDES judge question for the IFC gate to adjudicate.
+
+rule UntrustedInstructionShape {
+    meta:
+        id          = cwfr-0003
+        kind        = policy
+        version     = 0.1.0
+        severity    = medium
+        scope       = text_field
+        action      = quarantine
+        technique   = AML.T0051 (Initial Access, direct)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects instruction-like structure in an untrusted MCP field using structural markers rather than copied payload strings."
+        safety      = "Structural demonstration text only; excludes payload examples."
+    signals:
+        $untrusted_origin   = origin(resource_content, tool_output, server_manifest, server_sampling)
+        $instruction_shape  = text_structure(untrusted_instruction_shape)
+    semantics:
+        $instruction_intent = "Untrusted content attempts to provide instruction-like tasking or policy direction." (0.70)
+    judge:
+        $instruction_judge = "Assess whether redacted facts indicate untrusted content is attempting to direct agent behavior." (0.65)
+    condition:
+        ($untrusted_origin and $instruction_shape) or $instruction_intent or $instruction_judge
+}
+
+rule HiddenUnicodeStructure {
+    meta:
+        id          = cwfr-0004
+        kind        = policy
+        version     = 0.1.0
+        severity    = medium
+        scope       = text_field
+        action      = quarantine
+        technique   = T1027 (Defense Evasion, analogical)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects invisible or normalization-changing text structure in MCP-visible fields."
+        safety      = "Synthetic text with a zero-width separator only."
+    signals:
+        $hidden_unicode = text_structure(hidden_unicode)
+    judge:
+        $hidden_unicode_judge = "Assess whether redacted facts indicate invisible or normalization-changing text structure." (0.65)
+    condition:
+        $hidden_unicode or $hidden_unicode_judge
+}
+
+rule ProtectedContextExtraction {
+    meta:
+        id          = cwfr-0108
+        kind        = policy
+        version     = 0.1.0
+        severity    = medium
+        scope       = event_window
+        action      = quarantine
+        technique   = AML.T0056 (Exfiltration, analogical)
+        defense     = D3-OTF (Outbound Traffic Filtering)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects untrusted content requesting protected prompt, policy, schema, or hidden runtime context disclosure."
+        safety      = "Structural protected-context indicators only; no protected prompt text or private schemas."
+    signals:
+        $untrusted_origin        = origin(resource_content, tool_output, server_manifest, server_sampling)
+        $protected_context_shape = feature(protected_context_extraction_shape)
+    semantics:
+        $disclosure_intent = "Untrusted content targets hidden prompt, policy, schema, or runtime context material." (0.70)
+    judge:
+        $protected_context_judge = "Assess whether redacted facts indicate a request to disclose protected prompt, policy, schema, or runtime context." (0.65)
+    condition:
+        ($untrusted_origin and $protected_context_shape) or $disclosure_intent or $protected_context_judge
+}
+
+rule DeceptiveSocialEngineeringTasking {
+    meta:
+        id          = cwfr-0110
+        kind        = policy
+        version     = 0.1.0
+        severity    = medium
+        scope       = event_window
+        action      = quarantine
+        technique   = AML.T0052 (Initial Access, analogical)
+        defense     = D3-UBA (User Behavior Analysis)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects untrusted tasking that combines target-oriented social engineering with deceptive intent."
+        safety      = "Structural social-engineering indicators only; no lure text, target details, or operational instructions."
+    signals:
+        $untrusted_origin = origin(resource_content, tool_output, server_manifest, server_sampling)
+        $social_eng_shape = feature(social_engineering_shape)
+        $deception_shape  = feature(deception_shape)
+    semantics:
+        $deceptive_intent = "Content combines target profiling, lure, impersonation, or outbound contact preparation with deception." (0.70)
+    judge:
+        $deceptive_judge = "Assess whether redacted facts indicate deceptive target-oriented social engineering tasking." (0.65)
+    condition:
+        ($untrusted_origin and $social_eng_shape and $deception_shape) or $deceptive_intent or $deceptive_judge
+}

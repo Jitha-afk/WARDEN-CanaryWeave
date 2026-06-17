@@ -38,7 +38,7 @@ def test_missing_or_incomplete_rules_root_fails_loudly(tmp_path):
 
     incomplete = tmp_path / "rules"
     incomplete.mkdir()
-    with pytest.raises(RuntimeError, match="expected at least 31 .war rules"):
+    with pytest.raises(RuntimeError, match="no .war rulesets"):
         resources.validate_rules_root(incomplete)
 
 
@@ -114,7 +114,8 @@ def test_built_wheel_contains_packaged_rules_configs_and_data(tmp_path):
         names = set(archive.namelist())
 
     packaged_rules = [name for name in names if name.startswith("canaryweave_fides/assets/rules/") and name.endswith(".war")]
-    assert len(packaged_rules) == EXPECTED_RULE_COUNT
+    expected_rule_files = len(list((ROOT / "rules").rglob("*.war")))
+    assert len(packaged_rules) == expected_rule_files
     assert "canaryweave_fides/assets/conf/default.yaml" in names
     assert "canaryweave_fides/assets/conf/datasets.yaml" in names
     assert "canaryweave_fides/assets/conf/stacks.yaml" in names
