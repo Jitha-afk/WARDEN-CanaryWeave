@@ -7,11 +7,12 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping
 
+from .cases_dsl import CasesParseError, case_example_to_attack_case, parse_cases
 from .decisions import Decision, StackName
 from .fides import FidesIFCLayer
 from .facts import NormalizedFacts
 from .fixtures import smoke_cases
-from .gate import FidesJudgeMode, FidesJudgeResult, StaticFidesJudge, evaluate_stack
+from .gate import FidesJudgeMode, FidesJudgeResult, StaticFidesJudge, evaluate_case, evaluate_stack
 from .metrics import summarize_smoke
 from .providers import CopilotSdkJudgeProvider, JudgeProviderConfig, default_copilot_home
 from .resources import rules_root
@@ -306,6 +307,135 @@ def _bench_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+_WARDEN_TEST_STACKS = (
+    StackName.NO_GUARD,
+    StackName.REGEX_BASELINE,
+    StackName.YARA_RULES,
+    StackName.RULES_PLUS_FIDES,
+)
+
+
+def _stack_outcome(decision: Any) -> str:
+    """Collapse a GateDecision to the binary oracle: allow vs. block (block|quarantine)."""
+    return "allow" if decision.decision == Decision.ALLOW else "block"
+
+
+def _summarize_cases(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    total = len(rows)
+    passed = sum(1 for row in rows if row["pass"])
+    attacks = [row for row in rows if row["expected"] == "block"]
+    benign = [row for row in rows if row["expected"] == "allow"]
+    per_stack: dict[str, Any] = {}
+    for stack in _WARDEN_TEST_STACKS:
+        name = stack.value
+        asr = (sum(1 for row in attacks if row["stacks"][name] == "allow") / len(attacks)) if attacks else 0.0
+        fpr = (sum(1 for row in benign if row["stacks"][name] == "block") / len(benign)) if benign else 0.0
+        per_stack[name] = {"attack_success_rate": round(asr, 4), "false_positive_rate": round(fpr, 4)}
+    return {
+        "total": total,
+        "passed": passed,
+        "failed": total - passed,
+        "attacks": len(attacks),
+        "benign": len(benign),
+        "per_stack": per_stack,
+    }
+
+
+def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+
+
+def _write_cases_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    stack_names = [stack.value for stack in _WARDEN_TEST_STACKS]
+    fieldnames = ["attack_type", "detail", "expected", "actual", "pass", "oracle_decision", "rule_ids", *stack_names]
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            record = {
+                "attack_type": row["attack_type"],
+                "detail": row["detail"],
+                "expected": row["expected"],
+                "actual": row["actual"],
+                "pass": row["pass"],
+                "oracle_decision": row["oracle_decision"],
+                "rule_ids": ";".join(row["rule_ids"]),
+            }
+            for name in stack_names:
+                record[name] = row["stacks"][name]
+            writer.writerow(record)
+
+
+def _render_cases_table(rows: list[dict[str, Any]], summary: dict[str, Any], oracle: StackName) -> None:
+    def _truncate(text: str, width: int = 48) -> str:
+        flat = text.replace("\n", "\\n")
+        return flat if len(flat) <= width else flat[: width - 3] + "..."
+
+    header = f"{'attack_type':28s} {'detail':50s} {'expected':9s} {'actual':7s} result"
+    print(header)
+    print("-" * len(header))
+    for row in rows:
+        result = "pass" if row["pass"] else "FAIL"
+        print(f"{row['attack_type'][:28]:28s} {_truncate(row['detail']):50s} {row['expected']:9s} {row['actual']:7s} {result}")
+    print()
+    print(f"oracle stack: {oracle.value}  |  {summary['passed']}/{summary['total']} passed, {summary['failed']} failed")
+    print(f"{'stack':18s} {'ASR':>8s} {'FPR':>8s}")
+    for name, metrics in summary["per_stack"].items():
+        print(f"{name:18s} {metrics['attack_success_rate']:>8.2f} {metrics['false_positive_rate']:>8.2f}")
+
+
+def _warden_test(args: argparse.Namespace) -> int:
+    path = Path(args.input)
+    try:
+        examples = parse_cases(path.read_text(encoding="utf-8"))
+    except CasesParseError as exc:
+        print(json.dumps({"error": "cases_parse_error", "detail": str(exc)}, indent=2))
+        return 2
+    oracle = StackName.coerce(args.stack)
+    rows: list[dict[str, Any]] = []
+    for index, example in enumerate(examples):
+        case = case_example_to_attack_case(example, index=index)
+        decisions = evaluate_case(case, _WARDEN_TEST_STACKS)
+        by_stack = {decision.stack: decision for decision in decisions}
+        oracle_decision = by_stack[oracle]
+        actual = _stack_outcome(oracle_decision)
+        rows.append({
+            "attack_type": example.attack_type,
+            "detail": example.detail,
+            "expected": example.expected,
+            "actual": actual,
+            "pass": actual == example.expected,
+            "oracle_stack": oracle.value,
+            "oracle_decision": oracle_decision.decision.value,
+            "rule_ids": list(oracle_decision.rule_ids),
+            "stacks": {stack.value: _stack_outcome(by_stack[stack]) for stack in _WARDEN_TEST_STACKS},
+        })
+
+    summary = _summarize_cases(rows)
+    if args.jsonl is not None:
+        _write_jsonl(args.jsonl, rows)
+    if args.csv is not None:
+        _write_cases_csv(args.csv, rows)
+    if args.format == "json":
+        print(json.dumps(
+            {
+                "schema_version": "canaryweave_fides.warden_test.v1",
+                "oracle_stack": oracle.value,
+                "summary": summary,
+                "results": rows,
+            },
+            indent=2,
+            sort_keys=True,
+        ))
+    else:
+        _render_cases_table(rows, summary, oracle)
+    return 0 if summary["failed"] == 0 else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     effective_argv = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(description="CanaryWeave FIDES controlled smoke/eval runner")
@@ -350,6 +480,18 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("--llm-verdict", default=None, help="Optional FIDES rich-output verdict label, e.g. '1 malicious' or '0 benign'")
     check.add_argument("--no-animation", action="store_true", help="Disable rich unicode loading animation")
     check.add_argument("--output", type=Path, default=None)
+
+    test = warden_sub.add_parser("test", help="Run a .cases corpus across all four stacks")
+    test.add_argument("--input", required=True, type=Path, help=".cases corpus file")
+    test.add_argument(
+        "--stack",
+        default="yara_rules",
+        choices=["no_guard", "regex_baseline", "yara_rules", "rules_plus_fides"],
+        help="Oracle stack used for the pass/fail column and exit code",
+    )
+    test.add_argument("--format", choices=["table", "json"], default="table")
+    test.add_argument("--jsonl", type=Path, default=None, help="Write per-case JSONL for CI")
+    test.add_argument("--csv", type=Path, default=None, help="Write per-case CSV for CI")
 
     judge = subparsers.add_parser("judge", help="Run WARDEN plus optional FIDES on one prompt")
     judge_sub = judge.add_subparsers(dest="judge_command", required=True)
@@ -410,6 +552,8 @@ def main(argv: list[str] | None = None) -> int:
             return _provider_doctor(args)
     if args.command == "warden" and args.warden_command == "check":
         return _warden_check(args)
+    if args.command == "warden" and args.warden_command == "test":
+        return _warden_test(args)
     if args.command == "judge" and args.judge_command == "one":
         return _judge_one(args)
     if args.command == "bench" and args.bench_command == "scan":
