@@ -163,7 +163,7 @@ def test_cli_warden_check_prompt_outputs_public_decision(tmp_path):
     assert code == 0
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["schema_version"] == "canaryweave_fides.warden_check.v1"
-    assert report["prompt_included"] is False
+    assert report["prompt_included"] is True
     assert report["decision"]["decision"] in {"allow", "quarantine", "block"}
     # ADR 0003 removes redaction: the evaluated record carries the raw text so a
     # reader can see exactly what led to the decision.

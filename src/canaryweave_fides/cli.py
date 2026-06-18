@@ -211,7 +211,7 @@ def _warden_check(args: argparse.Namespace) -> int:
     decision = evaluate_stack(facts, StackName.YARA_RULES, rule_engine=rule_engine)
     payload = {
         "schema_version": "canaryweave_fides.warden_check.v1",
-        "prompt_included": False,
+        "prompt_included": True,
         "prompt_length": len(prompt),
         "facts": facts.to_dict(),
         "decision": decision.to_dict(),
@@ -477,7 +477,7 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("--rule-id", action="append", default=None, help="Limit WARDEN to one or more rule IDs/names")
     check.add_argument("--rule-file", type=Path, default=None, help="Run exactly one .war rule file")
     check.add_argument("--format", choices=["json", "rich"], default="json", help="Output format")
-    check.add_argument("--include-prompt", action="store_true", help="Show prompt text in rich terminal output; JSON remains public-safe")
+    check.add_argument("--include-prompt", action="store_true", help="Show prompt text in the rich terminal output (the JSON report always carries the raw prompt under facts.text)")
     check.add_argument("--llm-verdict", default=None, help="Optional FIDES rich-output verdict label, e.g. '1 malicious' or '0 benign'")
     check.add_argument("--no-animation", action="store_true", help="Disable rich unicode loading animation")
     check.add_argument("--output", type=Path, default=None)

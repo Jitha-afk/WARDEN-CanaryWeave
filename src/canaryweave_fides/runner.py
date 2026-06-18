@@ -256,7 +256,7 @@ def run_evaluation(
             "evidence_rules_configured": len(config.fides_test_double_evidence_rules),
             "fixture_verdicts_configured": len(test_double_results),
             "provider_calls_enabled": False,
-            "judge_transcripts_included": True,
+            "judge_transcripts_included": False,
             "label": "FIDES TEST DOUBLE EVIDENCE MODE" if config.fides_mode == FidesJudgeMode.TEST_DOUBLE else "FIDES DISABLED",
         },
         "defense_stacks": stack_counts,
