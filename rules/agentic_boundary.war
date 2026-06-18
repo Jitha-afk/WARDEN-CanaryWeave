@@ -17,22 +17,9 @@ rule ServerSamplingOriginBoundary {
         status      = experimental
         description = "Detects server-originated sampled content being treated as host-authoritative tool policy."
         safety      = "Synthetic structural facts only; no raw payload text or live sinks."
-<<<<<<< HEAD
     patterns:
         $authority_directive = /\b(?:as\s+(?:the\s+)?(?:system|admin(?:istrator)?|host|operator|root)|on\s+behalf\s+of\s+the\s+(?:system|host|user)|you\s+are\s+(?:authori[sz]ed|approved|cleared|permitted)\s+to)\b[^.\n]{0,30}\b(?:run|execute|invoke|call|dispatch|approve|perform)\b/i
         $tool_dispatch_claim = /\b(?:the\s+(?:system|host|policy)\s+(?:says|requires|instructs|approves|authori[sz]es)|automatically\s+(?:approve|allow|run|execute)|no\s+(?:confirmation|approval|review)\s+(?:is\s+)?(?:needed|required))\b[^.\n]{0,30}\b(?:tool|command|action|function|call)\b/i
-=======
->>>>>>> origin/main
-    semantics:
-        $authority_intent = "Untrusted content is attempting to act as host or user authority for tool dispatch." (0.70)
-    judge:
-        $authority_judge = "Assess whether public-safe facts show untrusted content causing a consequential tool action without authority." (0.65)
-    condition:
-<<<<<<< HEAD
-        (($authority_directive or $tool_dispatch_claim) and $from_untrusted_origin) or ($from_untrusted_origin and $tool_call_shape and $capability_denied) or $authority_intent or $authority_judge
-=======
-        ($from_untrusted_origin and $tool_call_shape and $capability_denied) or $authority_intent or $authority_judge
->>>>>>> origin/main
 }
 
 rule CanaryBoundaryCrossing {
@@ -47,7 +34,6 @@ rule CanaryBoundaryCrossing {
         status      = experimental
         description = "Detects a benign canary marker appearing outside an allowed event or sink boundary."
         safety      = "Uses benign synthetic marker labels only."
-<<<<<<< HEAD
     patterns:
         $canary_marker = /\bcanary[\s_-]?(?:token|marker|tag|string|value|secret)\b|\bhoney[\s_-]?token\b/i
         $marker_egress = /\b(?:forward|send|exfiltrate|post|upload|leak|email|transmit|copy|relay)\b[^.\n]{0,40}\b(?:canary|honeytoken|marker|token|beacon)\b/i
@@ -57,10 +43,4 @@ rule CanaryBoundaryCrossing {
         $canary_judge = "Assess whether public-safe facts indicate a protected canary marker moved outside an allowed boundary." (0.65)
     condition:
         $canary_outside_sink or $canary_marker or $marker_egress or $canary_intent or $canary_judge
-=======
-    judge:
-        $canary_judge = "Assess whether public-safe facts indicate a protected canary marker moved outside an allowed boundary." (0.65)
-    condition:
-        $canary_outside_sink or $canary_judge
->>>>>>> origin/main
 }
