@@ -25,7 +25,7 @@ rule CredentialOrSecretExposure {
     judge:
         $cred_judge = "Assess whether public-safe facts indicate credential or protected data exposure to an unapproved sink." (0.70)
     condition:
-        $cred_exfil or $cred_intent or $cred_judge
+        $cred_exfil or $canary_outside_sink or $cred_intent or $cred_judge
 }
 
 rule PathOrUriBoundaryEscape {
@@ -41,12 +41,15 @@ rule PathOrUriBoundaryEscape {
         status      = experimental
         description = "Detects path, URI, or resource-boundary escape shape paired with denied file/resource capability."
         safety      = "Structural path-boundary indicators only; no sensitive filesystem examples."
+    patterns:
+        $path_traversal  = /(?:\.\.[\/\\]){2,}|%2e%2e(?:%2f|%5c)|\b(?:\/etc\/(?:passwd|shadow)|\/proc\/self\/|file:\/\/\/?|\\\\[a-z0-9._-]+\\[a-z0-9$])/i
+        $resource_escape = /\b(?:access|read|open|fetch|load|traverse|reach)\b[^.\n]{0,24}\b(?:outside|beyond|above|escape)\b[^.\n]{0,20}\b(?:directory|folder|path|root|workspace|sandbox|allowed)\b/i
     semantics:
         $path_intent = "Content attempts to cross an authorized path, URI, or resource boundary." (0.70)
     judge:
         $path_judge = "Assess whether public-safe facts indicate an attempted path, URI, or resource-boundary escape." (0.65)
     condition:
-        $path_intent or $path_judge
+        (($path_traversal or $resource_escape) and $capability_denied) or $path_intent or $path_judge
 }
 
 rule CommandOrCodeExecutionRequest {
@@ -85,12 +88,15 @@ rule UnapprovedNetworkRequest {
         status      = experimental
         description = "Detects unapproved external network or API request shape."
         safety      = "Structural network-sink indicators only; no live endpoints."
+    patterns:
+        $network_call      = /\b(?:https?:\/\/|ftp:\/\/|curl\s|wget\s|invoke-webrequest|iwr\s|urllib|requests\.(?:get|post)|http\.(?:get|post)|fetch\s*\(|xmlhttprequest)/i
+        $external_endpoint = /\b(?:webhook|pastebin|ngrok\.io|requestbin|burpcollaborator|169\.254\.169\.254|metadata\.google\.internal)\b/i
     semantics:
         $net_intent = "Content requests external network or API access without approved authority." (0.70)
     judge:
         $net_judge = "Assess whether public-safe facts indicate an unapproved external network or API request." (0.65)
     condition:
-        $net_intent or $net_judge
+        (($network_call or $external_endpoint) and $capability_denied) or $net_intent or $net_judge
 }
 
 rule DestructiveActionIntent {
@@ -106,10 +112,13 @@ rule DestructiveActionIntent {
         status      = experimental
         description = "Detects untrusted or unauthorized destructive action intent over agent-controlled resources."
         safety      = "Structural destructive-intent indicators only; no executable destructive commands."
+    patterns:
+        $destructive_cmd = /\b(?:rm\s+-rf|del\s+\/[sfq]|format\s+[a-z]:|mkfs\b|dd\s+if=\/dev\/(?:zero|random)|drop\s+(?:database|table)|truncate\s+table|shred\s+-)/i
+        $wipe_scope      = /\b(?:delete|wipe|erase|destroy|purge|reset|overwrite)\b[^.\n]{0,24}\b(?:all\s+(?:files?|data|records?|backups?)|entire\s+(?:disk|drive|database|directory|bucket)|everything)\b/i
     semantics:
         $destroy_intent = "Content asks for deletion, wiping, reset, cleanup, or irreversible state change without sufficient authority." (0.70)
     judge:
         $destroy_judge = "Assess whether public-safe facts indicate unauthorized destructive action intent over agent-controlled resources." (0.65)
     condition:
-        $destroy_intent or $destroy_judge
+        (($destructive_cmd or $wipe_scope) and $capability_denied) or $destroy_intent or $destroy_judge
 }

@@ -1,0 +1,78 @@
+// CanaryWeave WARDEN policy ruleset: LLM-assisted social engineering
+// (ATLAS AML.T0052 / ATT&CK Phishing & Reconnaissance).
+//
+// Structured 4-evidence rules for content that manufactures persuasive deception
+// or profiles a target. Patterns + a built-in MCP fact + an engine semantic +
+// a FIDES judge question. Public-safe indicators only.
+
+rule PhishingContentGeneration {
+    meta:
+        id          = cwfr-llm-0018
+        version     = 0.1.0
+        severity    = high
+        scope       = text_field
+        action      = block_and_audit
+        technique   = AML.T0052 (Initial Access, direct), T1566 (Initial Access, analogical)
+        defense     = D3-UBA (User Behavior Analysis)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects requests to draft phishing emails, credential-harvest pages, or other deceptive lures."
+        safety      = "Structural lure indicators only; never emits a deployable phishing kit."
+    patterns:
+        $phish_request = /\b(?:write|create|draft|generate|compose)\b[^.\n]{0,30}\b(?:phishing|spear[\s-]?phishing|smishing)\b[^.\n]{0,20}\b(?:email|message|page|sms|text|campaign)\b/i
+        $lure_mechanic = /\b(?:urgent(?:ly)?\s+(?:verify|confirm|update)|your\s+account\s+(?:has\s+been|will\s+be)\s+(?:suspended|locked|closed)|click\s+(?:here|the\s+link)\s+to\s+(?:verify|reset|confirm)|enter\s+your\s+(?:password|credentials|login))\b/i
+    semantics:
+        $phishing_intent = "Content asks the assistant to draft a phishing message, credential-harvest page, or other deceptive lure." (0.70)
+    judge:
+        $phishing_judge = "Assess whether public-safe facts indicate a request to generate phishing or credential-harvesting content." (0.65)
+    condition:
+        (($phish_request or $lure_mechanic) and $from_untrusted_origin) or $phishing_intent or $phishing_judge
+}
+
+rule ImpersonationOfTrustedSource {
+    meta:
+        id          = cwfr-llm-0019
+        version     = 0.1.0
+        severity    = high
+        scope       = text_field
+        action      = block_and_audit
+        technique   = AML.T0052 (Initial Access, direct), T1656 (Impact, analogical)
+        defense     = D3-UBA (User Behavior Analysis)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects requests to impersonate a trusted brand, institution, or authority to deceive a target."
+        safety      = "Structural impersonation indicators only; no deployable forged communications."
+    patterns:
+        $impersonate_verb  = /\b(?:impersonat\w*|pose\s+as|pretend(?:ing)?\s+to\s+be|masquerad\w*\s+as|spoof\w*)\b[^.\n]{0,30}\b(?:bank|irs|hmrc|microsoft|apple|google|amazon|paypal|government|support\s+team|it\s+(?:department|support)|ceo|executive)\b/i
+        $forge_identity    = /\b(?:make\s+it\s+(?:look|appear)\s+(?:like|as\s+if)\s+it(?:'s|\s+is)\s+from|official\s+(?:looking|notice)\s+from|on\s+behalf\s+of\s+(?:the\s+)?(?:bank|company|government))\b/i
+    semantics:
+        $impersonation_intent = "Content asks the assistant to impersonate a trusted brand, institution, or authority to deceive a target." (0.70)
+    judge:
+        $impersonation_judge = "Assess whether public-safe facts indicate a request to impersonate a trusted source for deception." (0.65)
+    condition:
+        (($impersonate_verb or $forge_identity) and $from_untrusted_origin) or $impersonation_intent or $impersonation_judge
+}
+
+rule TargetReconnaissanceProfiling {
+    meta:
+        id          = cwfr-llm-0020
+        version     = 0.1.0
+        severity    = medium
+        scope       = event_window
+        action      = quarantine
+        technique   = T1591 (Reconnaissance, analogical), T1589 (Reconnaissance, analogical)
+        defense     = D3-UBA (User Behavior Analysis)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects requests to compile a profile or dossier on a specific person or organization to enable targeting."
+        safety      = "Structural profiling indicators only; no real personal data."
+    patterns:
+        $profile_request = /\b(?:build|compile|create|put\s+together|gather)\b[^.\n]{0,30}\b(?:profile|dossier|background\s+(?:check|report)|detailed\s+report)\b[^.\n]{0,20}\b(?:on|about|for)\b/i
+        $recon_target    = /\b(?:find|gather|collect|enumerate|dox)\b[^.\n]{0,30}\b(?:personal\s+(?:information|details)|home\s+address|phone\s+number|email\s+address|family\s+members|employer|social\s+media\s+(?:accounts?|profiles?))\b/i
+    semantics:
+        $recon_intent = "Content asks the assistant to compile a profile or dossier on a specific person or organization to enable targeting." (0.70)
+    judge:
+        $recon_judge = "Assess whether public-safe facts indicate a request to profile or gather intelligence on a specific target." (0.65)
+    condition:
+        (($profile_request or $recon_target) and $from_untrusted_origin) or $recon_intent or $recon_judge
+}

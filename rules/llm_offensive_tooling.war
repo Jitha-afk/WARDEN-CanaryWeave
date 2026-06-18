@@ -1,0 +1,101 @@
+// CanaryWeave WARDEN policy ruleset: LLM-assisted offensive tooling
+// (ATT&CK Resource Development / Execution).
+//
+// Structured 4-evidence rules for requests that turn the assistant into a
+// builder of offensive capability. Patterns + a built-in MCP fact + an engine
+// semantic + a FIDES judge question. Public-safe indicators only.
+
+rule OffensiveCodeGeneration {
+    meta:
+        id          = cwfr-llm-0014
+        version     = 0.1.0
+        severity    = high
+        scope       = text_field
+        action      = block_and_audit
+        technique   = T1059 (Execution, analogical)
+        defense     = D3-EI (Execution Isolation)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects requests to generate malware, ransomware, or other self-propagating or destructive offensive code."
+        safety      = "Structural request indicators only; never emits working offensive code."
+    patterns:
+        $malware_request = /\b(?:write|create|generate|build|develop|code)\b[^.\n]{0,30}\b(?:malware|ransomware|keylogger|rootkit|trojan|worm|botnet|crypto[\s-]?miner|backdoor)\b/i
+        $capability_verb = /\b(?:self[\s-]?(?:propagat\w*|replicat\w*)|encrypt\s+(?:all\s+)?(?:files?|the\s+(?:disk|drive))|evade\s+(?:antivirus|av|edr|detection)|disable\s+(?:antivirus|security|defender))\b/i
+    semantics:
+        $offensive_code_intent = "Content asks the assistant to generate malware, ransomware, or other self-propagating or destructive offensive code." (0.70)
+    judge:
+        $offensive_code_judge = "Assess whether public-safe facts indicate a request to produce malicious or destructive offensive code." (0.65)
+    condition:
+        (($malware_request or $capability_verb) and $from_untrusted_origin) or $offensive_code_intent or $offensive_code_judge
+}
+
+rule WebShellGeneration {
+    meta:
+        id          = cwfr-llm-0015
+        version     = 0.1.0
+        severity    = high
+        scope       = text_field
+        action      = block_and_audit
+        technique   = T1505.003 (Persistence, analogical)
+        defense     = D3-EI (Execution Isolation)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects requests to produce a web shell or server-side remote command endpoint for persistence."
+        safety      = "Structural web-shell indicators only; never emits a working shell."
+    patterns:
+        $webshell_term  = /\b(?:web[\s-]?shell|c99|r57|china\s+chopper|reverse\s+shell|bind\s+shell|command\s+shell\s+endpoint)\b/i
+        $rce_primitive  = /\b(?:eval|system|exec|shell_exec|passthru|popen|proc_open|os\.system|subprocess)\s*\(\s*\$?(?:_(?:GET|POST|REQUEST)|req\.(?:query|body)|request\.)/i
+    semantics:
+        $webshell_intent = "Content asks the assistant to produce a web shell or server-side remote command endpoint for persistence." (0.70)
+    judge:
+        $webshell_judge = "Assess whether public-safe facts indicate a request to create a web shell or remote command execution endpoint." (0.65)
+    condition:
+        (($webshell_term or $rce_primitive) and $from_untrusted_origin) or $webshell_intent or $webshell_judge
+}
+
+rule VulnerabilityExploitResearch {
+    meta:
+        id          = cwfr-llm-0016
+        version     = 0.1.0
+        severity    = medium
+        scope       = text_field
+        action      = quarantine
+        technique   = T1588.006 (Resource Development, analogical), T1595 (Reconnaissance, analogical)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects requests to weaponize a specific vulnerability or produce a working exploit for a named CVE or target."
+        safety      = "Structural exploit-research indicators only; never emits a working exploit."
+    patterns:
+        $exploit_request = /\b(?:write|create|develop|build|provide|give\s+me)\b[^.\n]{0,30}\b(?:a\s+working\s+)?(?:exploit|poc|proof[\s-]?of[\s-]?concept|0[\s-]?day|zero[\s-]?day)\b/i
+        $cve_target      = /\bCVE-\d{4}-\d{4,7}\b|\b(?:buffer\s+overflow|use[\s-]?after[\s-]?free|sql\s+injection|rce|remote\s+code\s+execution)\b[^.\n]{0,20}\b(?:exploit|payload|gadget)\b/i
+    semantics:
+        $exploit_intent = "Content asks the assistant to weaponize a specific vulnerability or produce a working exploit for a named target or CVE." (0.70)
+    judge:
+        $exploit_judge = "Assess whether public-safe facts indicate a request to develop a working exploit for a specific vulnerability." (0.65)
+    condition:
+        (($exploit_request or $cve_target) and $from_untrusted_origin) or $exploit_intent or $exploit_judge
+}
+
+rule OffensiveToolExtension {
+    meta:
+        id          = cwfr-llm-0017
+        version     = 0.1.0
+        severity    = medium
+        scope       = event_window
+        action      = quarantine
+        technique   = T1587.001 (Resource Development, analogical)
+        defense     = D3-EI (Execution Isolation)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects requests to extend, modularize, or add capabilities to offensive security frameworks and red-team tooling."
+        safety      = "Structural tool-extension indicators only; never emits operational offensive modules."
+    patterns:
+        $offensive_framework = /\b(?:metasploit|cobalt\s+strike|sliver|mimikatz|empire|covenant|havoc|bloodhound|nmap\s+script|msfvenom)\b/i
+        $extend_capability   = /\b(?:add|write|create|build|develop)\b[^.\n]{0,30}\b(?:module|plugin|extension|payload|stager|post[\s-]?exploitation|c2|command[\s-]?and[\s-]?control)\b/i
+    semantics:
+        $tool_extension_intent = "Content asks the assistant to extend or add capabilities to an offensive security framework or red-team tool." (0.70)
+    judge:
+        $tool_extension_judge = "Assess whether public-safe facts indicate a request to extend offensive or red-team tooling capability." (0.65)
+    condition:
+        (($offensive_framework or $extend_capability) and $from_untrusted_origin) or $tool_extension_intent or $tool_extension_judge
+}
