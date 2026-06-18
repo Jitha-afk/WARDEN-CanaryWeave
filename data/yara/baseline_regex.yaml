@@ -2,15 +2,15 @@ schema_version: 1
 ruleset_id: baseline_regex
 version: 0.1.0
 purpose: >-
-  Public-safe regex baseline manifest for comparison against the signature-tier
-  and policy-tier .war rules. Patterns operate only on redacted text features and
-  safe structural markers.
+  Public-safe regex baseline manifest for comparison against the .war rules.
+  Patterns operate only on public-safe feature flags and structural markers,
+  never raw adversarial payload signatures.
 
 safety:
   no_raw_payload_signatures: true
   no_dataset_specific_payload_strings: true
   inspect_raw_prompts: false
-  inspect_redacted_features_only: true
+  inspect_feature_flags_only: true
 
 baseline_patterns:
   - id: regex.hidden_structure_marker

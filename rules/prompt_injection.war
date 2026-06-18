@@ -1,7 +1,7 @@
 // CanaryWeave WARDEN signature ruleset: prompt-injection / jailbreak signature (ATLAS AML.T0051).
 //
-// kind: signature rules use only the patterns layer — public, generic
-// host indicators (ATT&CK paths/binaries/tropes), never dataset strings.
+// A patterns-only ruleset — public, generic host indicators
+// (ATT&CK paths/binaries/tropes), never dataset strings.
 
 rule PromptInjectionJailbreak {
     meta:

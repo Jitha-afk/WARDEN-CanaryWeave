@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_load_starter_rule_validates_required_metadata():
-    rules = load_rule_file(ROOT / "rules" / "policy" / "agentic_boundary.war")
+    rules = load_rule_file(ROOT / "rules" / "agentic_boundary.war")
     rule = next(r for r in rules if r.id == "cwfr-0001")
     assert rule.name == "ServerSamplingOriginBoundary"
     assert rule.severity == "high"
@@ -37,7 +37,7 @@ def test_validate_rule_rejects_unknown_condition_term():
 
 
 def test_load_rules_rejects_duplicate_rule_ids(tmp_path):
-    src = ROOT / "rules" / "policy" / "agentic_boundary.war"
+    src = ROOT / "rules" / "agentic_boundary.war"
     (tmp_path / "a.war").write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
     (tmp_path / "b.war").write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
     with pytest.raises(RuleValidationError, match="Duplicate rule id"):

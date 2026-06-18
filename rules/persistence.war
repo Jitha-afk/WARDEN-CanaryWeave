@@ -1,7 +1,7 @@
 // CanaryWeave WARDEN signature ruleset: persistence-mechanism signatures (ATT&CK TA0003).
 //
-// kind: signature rules use only the patterns layer — public, generic
-// host indicators (ATT&CK paths/binaries/tropes), never dataset strings.
+// A patterns-only ruleset — public, generic host indicators
+// (ATT&CK paths/binaries/tropes), never dataset strings.
 
 rule UnixPersistenceMechanisms {
     meta:
