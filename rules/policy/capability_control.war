@@ -1,9 +1,9 @@
 // CanaryWeave WARDEN policy ruleset: capability & information-flow boundaries.
 //
-// Each rule is kind: policy — it reasons over structured IFC facts (signals),
-// engine semantics, and a FIDES judge question rather than raw text. A rule that
-// fires on its judge layer hands that question to the IFC gate, which is what
-// FIDES uses to interrogate the quarantined model.
+// Each rule reasons over framework-owned facts, engine semantics, and a FIDES
+// judge question rather than raw text. A rule that fires on its judge layer
+// hands that question to the IFC gate, which is what FIDES uses to interrogate
+// the quarantined model.
 
 rule CredentialOrSecretExposure {
     meta:
@@ -18,9 +18,8 @@ rule CredentialOrSecretExposure {
         status      = experimental
         description = "Detects protected credential-like data flow toward an unapproved sink."
         safety      = "Uses structural protected-data indicators only; no real secrets or credential examples."
-    signals:
-        $cred_shape = feature(credential_or_secret_shape)
     semantics:
+        $cred_shape = "protected credential material structure" (0.70)
         $cred_intent = "Content indicates protected credential-like data may flow toward an unapproved destination." (0.70)
     judge:
         $cred_judge = "Assess whether redacted facts indicate credential or protected data exposure to an unapproved sink." (0.70)
@@ -41,15 +40,13 @@ rule PathOrUriBoundaryEscape {
         status      = experimental
         description = "Detects path, URI, or resource-boundary escape shape paired with denied file/resource capability."
         safety      = "Structural path-boundary indicators only; no sensitive filesystem examples."
-    signals:
-        $path_shape = feature(path_boundary_shape)
-        $no_grant   = capability(not_in_allowed)
     semantics:
+        $path_shape = "resource boundary request structure" (0.70)
         $path_intent = "Content attempts to cross an authorized path, URI, or resource boundary." (0.70)
     judge:
         $path_judge = "Assess whether redacted facts indicate an attempted path, URI, or resource-boundary escape." (0.65)
     condition:
-        ($path_shape and $no_grant) or $path_intent or $path_judge
+        ($path_shape and $capability_denied) or $path_intent or $path_judge
 }
 
 rule CommandOrCodeExecutionRequest {
@@ -65,15 +62,13 @@ rule CommandOrCodeExecutionRequest {
         status      = experimental
         description = "Detects untrusted or dataset-local content requesting command or code execution capability."
         safety      = "Structural feature-only rule; examples must not contain executable payload text."
-    signals:
-        $exec_shape = feature(command_execution_shape)
-        $no_grant   = capability(not_in_allowed)
     semantics:
+        $exec_shape = "execution request structure" (0.70)
         $exec_intent = "Content requests command, code, script, shell, or interpreter-like execution." (0.70)
     judge:
         $exec_judge = "Assess whether redacted facts indicate untrusted content is requesting command or code execution." (0.65)
     condition:
-        ($exec_shape and $no_grant) or $exec_intent or $exec_judge
+        ($exec_shape and $capability_denied) or $exec_intent or $exec_judge
 }
 
 rule UnapprovedNetworkRequest {
@@ -89,15 +84,13 @@ rule UnapprovedNetworkRequest {
         status      = experimental
         description = "Detects unapproved external network or API request shape."
         safety      = "Structural network-sink indicators only; no live endpoints."
-    signals:
-        $net_shape = feature(network_request_shape)
-        $no_grant  = capability(not_in_allowed)
     semantics:
+        $net_shape = "external request structure" (0.70)
         $net_intent = "Content requests external network or API access without approved authority." (0.70)
     judge:
         $net_judge = "Assess whether redacted facts indicate an unapproved external network or API request." (0.65)
     condition:
-        ($net_shape and $no_grant) or $net_intent or $net_judge
+        ($net_shape and $capability_denied) or $net_intent or $net_judge
 }
 
 rule DestructiveActionIntent {
@@ -113,13 +106,11 @@ rule DestructiveActionIntent {
         status      = experimental
         description = "Detects untrusted or unauthorized destructive action intent over agent-controlled resources."
         safety      = "Structural destructive-intent indicators only; no executable destructive commands."
-    signals:
-        $destroy_shape = feature(destructive_action_shape)
-        $no_grant      = capability(not_in_allowed)
     semantics:
+        $destroy_shape = "destructive action structure" (0.70)
         $destroy_intent = "Content asks for deletion, wiping, reset, cleanup, or irreversible state change without sufficient authority." (0.70)
     judge:
         $destroy_judge = "Assess whether redacted facts indicate unauthorized destructive action intent over agent-controlled resources." (0.65)
     condition:
-        ($destroy_shape and $no_grant) or $destroy_intent or $destroy_judge
+        ($destroy_shape and $capability_denied) or $destroy_intent or $destroy_judge
 }

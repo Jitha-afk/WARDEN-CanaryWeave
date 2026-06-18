@@ -91,8 +91,6 @@ def test_wildcard_quantifier_requires_declared_section():
         id          = cwfr-test-0009
         severity    = low
         technique   = T1059 (Execution, analogical)
-    signals:
-        $s = event_field_equals(origin, server_sampling)
     condition:
         any of patterns
 }
@@ -120,4 +118,4 @@ def test_ppe_benchmark_corpus_loads():
     ppe = [rule for rule in rules if rule.id.startswith("cwfr-ppe-")]
     assert len(ppe) == 20
     assert all(rule.patterns for rule in ppe)
-    assert all(not (rule.signals or rule.semantics or rule.judge_checks) for rule in ppe)
+    assert all(not (rule.facts or rule.semantics or rule.judge_checks) for rule in ppe)

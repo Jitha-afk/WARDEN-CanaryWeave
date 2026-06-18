@@ -457,6 +457,16 @@ def _facts_to_trace_and_policy(facts: NormalizedFacts) -> tuple[tuple[TraceEvent
         text_parts.append("external request structure")
     if bool(facts.features.get("credential_or_secret_shape")):
         text_parts.append("protected credential material structure")
+    if bool(facts.features.get("protected_context_extraction_shape")):
+        text_parts.append("protected context extraction structure")
+    if bool(facts.features.get("social_engineering_shape")):
+        text_parts.append("social engineering structure")
+    if bool(facts.features.get("deception_shape")):
+        text_parts.append("deception structure")
+    if bool(facts.features.get("destructive_action_shape")):
+        text_parts.append("destructive action structure")
+    if bool(facts.features.get("security_tool_extension_shape")):
+        text_parts.append("security tool extension structure")
     if bool(facts.features.get("obfuscated")):
         text_parts.append("hidden" + "\u200b" + "structure")
     if bool(facts.features.get("canary_present")):

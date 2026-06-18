@@ -1,8 +1,8 @@
 // CanaryWeave WARDEN demo ruleset: MCP tool path-boundary escape.
 //
-// A single kind: policy rule used by `warden check --rule-file` demos. The
-// deterministic core fires on a path-boundary feature with denied capability;
-// the FIDES judge question is what the IFC gate would ask downstream.
+// A single rule used by `warden check --rule-file` demos. The deterministic
+// core fires on a path-boundary semantic with denied capability; the FIDES
+// judge question is what the IFC gate would ask downstream.
 
 rule MCPToolPathBoundaryRule {
     meta:
@@ -17,14 +17,12 @@ rule MCPToolPathBoundaryRule {
         status      = demo
         description = "Detects an MCP tool call shape that requests file access outside an allowed workspace boundary."
         safety      = "Demo rule uses a synthetic relative-path shape only; no sensitive filesystem path or real private file is included."
-    signals:
-        $path_boundary_shape = feature(path_boundary_shape)
-        $no_grant            = capability(not_in_allowed)
     semantics:
+        $path_boundary_shape = "resource boundary request structure" (0.70)
         $path_boundary_escape = "Prompt requests file or resource access outside the authorized workspace boundary." (0.70)
         $mcp_tool_path_access = "Prompt is shaped like an MCP tool call requesting path-based resource access." (0.70)
     judge:
         $path_boundary_judge = "Assess whether public-safe normalized facts indicate an MCP tool path-boundary violation." (0.65)
     condition:
-        ($path_boundary_shape and $no_grant) or $path_boundary_escape or $mcp_tool_path_access or $path_boundary_judge
+        ($path_boundary_shape and $capability_denied) or $path_boundary_escape or $mcp_tool_path_access or $path_boundary_judge
 }

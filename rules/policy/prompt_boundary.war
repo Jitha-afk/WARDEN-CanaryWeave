@@ -16,15 +16,12 @@ rule UntrustedInstructionShape {
         status      = experimental
         description = "Detects instruction-like structure in an untrusted MCP field using structural markers rather than copied payload strings."
         safety      = "Structural demonstration text only; excludes payload examples."
-    signals:
-        $untrusted_origin   = origin(resource_content, tool_output, server_manifest, server_sampling)
-        $instruction_shape  = text_structure(untrusted_instruction_shape)
     semantics:
         $instruction_intent = "Untrusted content attempts to provide instruction-like tasking or policy direction." (0.70)
     judge:
         $instruction_judge = "Assess whether redacted facts indicate untrusted content is attempting to direct agent behavior." (0.65)
     condition:
-        ($untrusted_origin and $instruction_shape) or $instruction_intent or $instruction_judge
+        ($from_untrusted_origin and $instruction_shape) or $instruction_intent or $instruction_judge
 }
 
 rule HiddenUnicodeStructure {
@@ -39,8 +36,6 @@ rule HiddenUnicodeStructure {
         status      = experimental
         description = "Detects invisible or normalization-changing text structure in MCP-visible fields."
         safety      = "Synthetic text with a zero-width separator only."
-    signals:
-        $hidden_unicode = text_structure(hidden_unicode)
     judge:
         $hidden_unicode_judge = "Assess whether redacted facts indicate invisible or normalization-changing text structure." (0.65)
     condition:
@@ -60,15 +55,13 @@ rule ProtectedContextExtraction {
         status      = experimental
         description = "Detects untrusted content requesting protected prompt, policy, schema, or hidden runtime context disclosure."
         safety      = "Structural protected-context indicators only; no protected prompt text or private schemas."
-    signals:
-        $untrusted_origin        = origin(resource_content, tool_output, server_manifest, server_sampling)
-        $protected_context_shape = feature(protected_context_extraction_shape)
     semantics:
+        $protected_context_shape = "protected context extraction structure" (0.70)
         $disclosure_intent = "Untrusted content targets hidden prompt, policy, schema, or runtime context material." (0.70)
     judge:
         $protected_context_judge = "Assess whether redacted facts indicate a request to disclose protected prompt, policy, schema, or runtime context." (0.65)
     condition:
-        ($untrusted_origin and $protected_context_shape) or $disclosure_intent or $protected_context_judge
+        ($from_untrusted_origin and $protected_context_shape) or $disclosure_intent or $protected_context_judge
 }
 
 rule DeceptiveSocialEngineeringTasking {
@@ -84,14 +77,12 @@ rule DeceptiveSocialEngineeringTasking {
         status      = experimental
         description = "Detects untrusted tasking that combines target-oriented social engineering with deceptive intent."
         safety      = "Structural social-engineering indicators only; no lure text, target details, or operational instructions."
-    signals:
-        $untrusted_origin = origin(resource_content, tool_output, server_manifest, server_sampling)
-        $social_eng_shape = feature(social_engineering_shape)
-        $deception_shape  = feature(deception_shape)
     semantics:
+        $social_eng_shape = "social engineering structure" (0.70)
+        $deception_shape = "deception structure" (0.70)
         $deceptive_intent = "Content combines target profiling, lure, impersonation, or outbound contact preparation with deception." (0.70)
     judge:
         $deceptive_judge = "Assess whether redacted facts indicate deceptive target-oriented social engineering tasking." (0.65)
     condition:
-        ($untrusted_origin and $social_eng_shape and $deception_shape) or $deceptive_intent or $deceptive_judge
+        ($from_untrusted_origin and $social_eng_shape and $deception_shape) or $deceptive_intent or $deceptive_judge
 }

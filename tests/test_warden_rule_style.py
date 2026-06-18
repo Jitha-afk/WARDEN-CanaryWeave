@@ -11,8 +11,8 @@ PUBLIC_DOC_ROOTS = [ROOT / "README.md", ROOT / "docs", ROOT / "design", ROOT / "
 
 
 RICH_CONDITION = (
-    "$source_is_untrusted and "
-    "($no_grant or $policy_violation_judge or $unauthorized_resource_access or $path_traversal_shape)"
+    "$from_untrusted_origin and "
+    "($capability_denied or $policy_violation_judge or $unauthorized_resource_access or $path_traversal_shape)"
 )
 
 RICH_RULE = """rule RichStructuredRule {{
@@ -30,9 +30,6 @@ RICH_RULE = """rule RichStructuredRule {{
         safety      = "Synthetic structural facts only; no source payload text."
     patterns:
         $path_traversal_shape = /safe-placeholder/i
-    signals:
-        $source_is_untrusted = origin(server_sampling, tool_output)
-        $no_grant            = capability(not_in_allowed)
     semantics:
         $unauthorized_resource_access = "Requests access outside an allowed resource boundary." (0.72)
     judge:
@@ -55,7 +52,7 @@ def test_rich_warden_rule_accepts_meta_patterns_semantics_and_judge_sections():
 
 
 def test_rich_warden_rule_rejects_unknown_condition_reference():
-    text = RICH_RULE.replace(RICH_CONDITION, "$source_is_untrusted and $missing_check")
+    text = RICH_RULE.replace(RICH_CONDITION, "$from_untrusted_origin and $missing_check")
 
     with pytest.raises(RuleValidationError, match="missing_check"):
         parse_ruleset(text)

@@ -1,11 +1,12 @@
 """Deterministic evaluation engine for the WARDEN rule DSL.
 
-The engine evaluates each rule's four detection layers against a window of
-normalized :class:`TraceEvent` facts, then resolves the rule's boolean
-``condition`` over the resulting per-term truth values. ``judge`` terms are held
-False in the deterministic pass; when a rule would only fire *with* a judge term,
-the engine emits a :class:`PendingFidesCheck` so the gate can route the rule's
-questions to the FIDES judge on a WARDEN miss.
+The engine evaluates each rule's detection layers (``patterns``, ``semantics``,
+``judge``) plus the built-in boolean ``facts`` against a window of normalized
+:class:`TraceEvent` records, then resolves the rule's boolean ``condition`` over
+the resulting per-term truth values. ``judge`` terms are held False in the
+deterministic pass; when a rule would only fire *with* a judge term, the engine
+emits a :class:`PendingFidesCheck` so the gate can route the rule's questions to
+the FIDES judge on a WARDEN miss.
 """
 
 from __future__ import annotations
@@ -23,7 +24,6 @@ from .rule_schema import (
     PatternDef,
     RuleDefinition,
     SemanticPattern,
-    SignalDefinition,
     _condition_references,
     compile_pattern_regex,
 )
@@ -35,6 +35,14 @@ class RuleEngineError(ValueError):
 
 
 _SAFE_EXPR_RE = re.compile(r"[TrueFalsandornt ()]+")
+
+# Schema-shape labels the framework treats as "structurally a tool call/plan".
+_TOOL_CALL_SHAPES = frozenset({"tool_plan_like_json", "tool_plan", "tool_plan_like", "tool_call"})
+# The untrusted MCP content origins (ADR 0003 / fact_registry: "tools/call
+# result, resources/read, server manifest, sampling/createMessage"). Origin trust
+# is a property of where content entered on the wire, not of host policy, so this
+# set is fixed rather than policy-relative.
+_UNTRUSTED_ORIGINS = frozenset({"resource_content", "tool_output", "server_manifest", "server_sampling"})
 
 
 class RuleEngine:
@@ -48,10 +56,10 @@ class RuleEngine:
         pending_fides: list[PendingFidesCheck] = []
         for rule in self.rules:
             pattern_values = {p.name: self._eval_pattern(p, events) for p in rule.patterns}
-            signal_values = {s.name: self._eval_signal(s, events, ctx) for s in rule.signals}
+            fact_values = {name: self._eval_fact(name, events, ctx) for name in rule.facts}
             semantic_values = {s.name: self._eval_semantic(s, events) for s in rule.semantics}
             judge_values = {check.name: False for check in rule.judge_checks}
-            term_values: dict[str, bool] = {**pattern_values, **signal_values, **semantic_values, **judge_values}
+            term_values: dict[str, bool] = {**pattern_values, **fact_values, **semantic_values, **judge_values}
             layer_names = rule.layer_names
 
             baseline_hit = self._eval_condition(rule.condition, term_values, layer_names)
@@ -62,7 +70,7 @@ class RuleEngine:
                     category=rule.tactic,
                     severity=rule.severity,
                     action=rule.action,
-                    matched_signals=tuple(name for name, value in signal_values.items() if value),
+                    matched_signals=tuple(name for name, value in fact_values.items() if value),
                     evidence={
                         "scope": rule.scope,
                         "matched_patterns": [name for name, value in pattern_values.items() if value],
@@ -101,51 +109,32 @@ class RuleEngine:
             return False
         return any(best_score(event.text or "", references) >= semantic.threshold for event in events)
 
-    def _eval_signal(self, signal: SignalDefinition, events: tuple[TraceEvent, ...], policy: PolicyContext) -> bool:
-        params = signal.params
-        if signal.type == "event_field_equals":
-            field = str(params["field"])
-            value = params["value"]
-            return any(event.field_value(field) == value for event in events)
-        if signal.type == "event_field_in":
-            field = str(params["field"])
-            values = set(params.get("values", []))
-            return any(event.field_value(field) in values for event in events)
-        if signal.type == "schema_shape":
-            shape = params.get("shape")
-            return any(event.schema_shape == shape for event in events)
-        if signal.type == "capability_policy":
-            relation = params.get("relation")
-            if relation != "not_in_allowed_capabilities":
-                raise RuleEngineError(f"Unsupported capability relation: {relation}")
+    def _eval_fact(self, name: str, events: tuple[TraceEvent, ...], policy: PolicyContext) -> bool:
+        """Resolve one frozen fact against the trace window.
+
+        Each fact is a framework-owned boolean derived from the normalized
+        :class:`TraceEvent` fields (today) and the MCP wire (later). The closed
+        vocabulary lives in :mod:`canaryweave_fides.fact_registry`.
+        """
+        if name == "from_untrusted_origin":
+            return any(event.origin in _UNTRUSTED_ORIGINS for event in events)
+        if name == "capability_denied":
             return any(
                 event.capability is not None and event.capability not in policy.allowed_capabilities
                 for event in events
             )
-        if signal.type == "canary_flow":
-            relation = params.get("relation")
-            if relation != "outside_allowed_sink":
-                raise RuleEngineError(f"Unsupported canary relation: {relation}")
+        if name == "canary_outside_sink":
             return any(
                 event.canary_present and event.sink not in policy.allowed_canary_sinks
                 for event in events
             )
-        if signal.type == "feature_flag":
-            feature = str(params.get("feature"))
-            expected = bool(params.get("value", True))
-            return any(bool(event.metadata.get(feature, False)) is expected for event in events)
-        if signal.type == "event_field_contains":
-            field = str(params["field"])
-            needle = str(params["value"]).lower()
-            return any(needle in str(event.field_value(field) or "").lower() for event in events)
-        if signal.type == "text_structure":
-            feature = params.get("feature")
-            if feature == "hidden_unicode":
-                return any(has_hidden_unicode_structure(event.text) for event in events)
-            if feature == "untrusted_instruction_shape":
-                return any(has_untrusted_instruction_shape(event.text) for event in events)
-            raise RuleEngineError(f"Unsupported text feature: {feature}")
-        raise RuleEngineError(f"Unsupported signal type: {signal.type}")
+        if name == "tool_call_shape":
+            return any(event.schema_shape in _TOOL_CALL_SHAPES for event in events)
+        if name == "hidden_unicode":
+            return any(has_hidden_unicode_structure(event.text) for event in events)
+        if name == "instruction_shape":
+            return any(has_untrusted_instruction_shape(event.text) for event in events)
+        raise RuleEngineError(f"Unknown fact: ${name}")
 
     def _expand_quantifiers(self, condition: str, layer_names: dict[str, set[str]]) -> str:
         all_names = set().union(*layer_names.values()) if layer_names else set()

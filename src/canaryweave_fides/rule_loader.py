@@ -10,23 +10,21 @@ The DSL is YARA-flavoured and line-oriented. A file is a ruleset of one or more
             action      = block_and_audit
             technique   = T1059 (Execution, analogical)
             description = "Untrusted content requesting command or code execution."
-        signals:
-            $exec_shape = feature(command_execution_shape)
-            $no_grant   = capability(not_in_allowed)
         semantics:
             $exec_intent = "Content requests command, code, or shell execution." (0.70)
         judge:
-            $exec_judge = "Do redacted facts request command or code execution?" (0.65)
+            $exec_judge = "Do the facts request command or code execution?" (0.65)
         condition:
-            ($exec_shape and $no_grant) or $exec_intent or $exec_judge
+            ($from_untrusted_origin and $capability_denied) or $exec_intent or $exec_judge
     }
 
 Grammar conventions the parser relies on (and the authoring guide documents):
 
 * A rule header is ``rule <Name> {`` with the opening brace ending the line.
 * The closing ``}`` of a rule sits on its own line.
-* Sections are introduced by ``meta:`` / ``patterns:`` / ``signals:`` /
-  ``semantics:`` / ``judge:`` / ``condition:`` headers.
+* Sections are introduced by ``meta:`` / ``patterns:`` / ``semantics:`` /
+  ``judge:`` / ``condition:`` headers. Built-in ``$fact`` references need no
+  section — the frozen registry is their declaration.
 * One entry per line. ``meta`` entries are ``key = value``; detection entries are
   ``$name = <expr>``.
 * Comments occupy a whole line and start with ``//`` or ``#``.
@@ -55,15 +53,14 @@ class RuleParseError(RuleValidationError):
 
 
 _RULE_HEADER_RE = re.compile(r"^rule\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{$")
-_SECTION_HEADER_RE = re.compile(r"^(meta|patterns|signals|semantics|judge|condition)\s*:(.*)$")
+_SECTION_HEADER_RE = re.compile(r"^(meta|patterns|semantics|judge|condition)\s*:(.*)$")
 _META_ENTRY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$")
 _TERM_ENTRY_RE = re.compile(r"^\$([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$")
-_SIGNAL_CTOR_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\((.*)\)\s*$")
 _SCORED_RE = re.compile(r"^(.*?)\(\s*([0-9]*\.?[0-9]+)\s*\)\s*$")
 _INT_RE = re.compile(r"^-?\d+$")
 _FLOAT_RE = re.compile(r"^-?\d*\.\d+$")
 
-_DETECTION_SECTIONS = {"patterns", "signals", "semantics", "judge"}
+_DETECTION_SECTIONS = {"patterns", "semantics", "judge"}
 
 
 def _is_comment(line: str) -> bool:
@@ -127,16 +124,6 @@ def _parse_pattern_rhs(name: str, rhs: str) -> dict[str, Any]:
     raise RuleParseError(f"pattern ${name} must be a /regex/flags literal or a \"quoted\" string, got: {rhs!r}")
 
 
-def _parse_signal_rhs(name: str, rhs: str) -> dict[str, Any]:
-    match = _SIGNAL_CTOR_RE.match(rhs.strip())
-    if not match:
-        raise RuleParseError(f"signal ${name} must be a constructor like feature(...), got: {rhs!r}")
-    ctor = match.group(1)
-    arg_text = match.group(2).strip()
-    args = [_interpret_scalar(token) for token in _split_top_level(arg_text)] if arg_text else []
-    return {"name": name, "ctor": ctor, "args": args}
-
-
 def _parse_scored_rhs(name: str, rhs: str, *, key: str) -> dict[str, Any]:
     match = _SCORED_RE.match(rhs.strip())
     if not match:
@@ -188,7 +175,6 @@ def parse_ruleset(text: str, *, source: str = "<string>") -> tuple[RuleDefinitio
                 "name": header.group(1),
                 "meta": {},
                 "patterns": [],
-                "signals": [],
                 "semantics": [],
                 "judge": [],
             }
@@ -233,8 +219,6 @@ def parse_ruleset(text: str, *, source: str = "<string>") -> tuple[RuleDefinitio
         name, rhs = entry.group(1), entry.group(2)
         if section == "patterns":
             current["patterns"].append(_parse_pattern_rhs(name, rhs))
-        elif section == "signals":
-            current["signals"].append(_parse_signal_rhs(name, rhs))
         elif section == "semantics":
             current["semantics"].append(_parse_scored_rhs(name, rhs, key="description"))
         elif section == "judge":

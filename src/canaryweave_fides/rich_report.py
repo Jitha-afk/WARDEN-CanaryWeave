@@ -116,7 +116,7 @@ def _matched_or_all_signals(rule: RuleDefinition | None, decision: Mapping[str, 
     if rule is None:
         return []
     matched = {str(item) for item in decision.get("reason_codes", ())}
-    names = [signal.name for signal in rule.signals]
+    names = list(rule.facts)
     selected = [name for name in names if name in matched]
     if not selected:
         selected = names

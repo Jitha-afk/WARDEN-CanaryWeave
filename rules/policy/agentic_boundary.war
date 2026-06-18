@@ -17,16 +17,12 @@ rule ServerSamplingOriginBoundary {
         status      = experimental
         description = "Detects server-originated sampled content being treated as host-authoritative tool policy."
         safety      = "Synthetic structural facts only; no raw payload text or live sinks."
-    signals:
-        $origin_server_sampling = event_field_equals(origin, server_sampling)
-        $tool_plan_shape        = schema_shape(tool_plan_like_json)
-        $no_grant               = capability(not_in_allowed)
     semantics:
         $authority_intent = "Untrusted content is attempting to act as host or user authority for tool dispatch." (0.70)
     judge:
         $authority_judge = "Assess whether redacted facts show untrusted content causing a consequential tool action without authority." (0.65)
     condition:
-        ($origin_server_sampling and $tool_plan_shape and $no_grant) or $authority_intent or $authority_judge
+        ($from_untrusted_origin and $tool_call_shape and $capability_denied) or $authority_intent or $authority_judge
 }
 
 rule CanaryBoundaryCrossing {
@@ -41,8 +37,6 @@ rule CanaryBoundaryCrossing {
         status      = experimental
         description = "Detects a benign canary marker appearing outside an allowed event or sink boundary."
         safety      = "Uses benign synthetic marker labels only."
-    signals:
-        $canary_outside_sink = canary_flow(outside_allowed_sink)
     judge:
         $canary_judge = "Assess whether redacted facts indicate a protected canary marker moved outside an allowed boundary." (0.65)
     condition:

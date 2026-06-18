@@ -1,9 +1,9 @@
 """Schema and validation for the CanaryWeave WARDEN rule DSL.
 
 A ``.war`` file is a *ruleset*: an ordered set of ``rule Name { ... }`` blocks.
-Each rule carries an identity envelope (``meta:``) plus up to four detection
-layers (``patterns``, ``signals``, ``semantics``, ``judge``) and a boolean
-``condition`` over the terms those layers declare.
+Each rule carries an identity envelope (``meta:``) plus up to three detection
+layers (``patterns``, ``semantics``, ``judge``) and a boolean ``condition`` over
+the terms those layers declare and the built-in ``$fact`` references.
 
 The DSL grammar lives in :mod:`canaryweave_fides.rule_loader` (the tokenizer and
 block parser). This module owns *semantics*: it consumes the structured dict a
@@ -13,14 +13,16 @@ The contract enforced here:
 
 * ``meta.id`` (``cwfr-*``), ``meta.severity`` and at least one
   ``meta.technique`` anchor are required.
-* A rule must declare at least one detection layer (``patterns``, ``signals``,
-  ``semantics`` or ``judge``). A rule's character is *descriptive*, not
-  declared: a patterns-only rule is a brittle signature; a rule that reasons
-  over relational layers is a structured policy. The brittle-vs-structured
-  contrast lives at the guard-stack level, not on the rule.
+* A rule must declare at least one detection layer (``patterns``,
+  ``semantics`` or ``judge``) or reference at least one built-in ``$fact``. A
+  rule's character is *descriptive*, not declared: a patterns-only rule is a
+  brittle signature; a rule that reasons over facts/semantics/judge is a
+  structured policy. The brittle-vs-structured contrast lives at the guard-stack
+  level, not on the rule.
 * Every ``$term`` declared by a layer must be referenced by ``condition`` and
-  every ``$term`` referenced must be declared (no dead terms); term names are
-  unique across layers.
+  every ``$term`` referenced must be either declared by a layer or a built-in
+  ``$fact`` (no dead terms, no unknown terms); term names are unique across
+  layers.
 * The technique anchor's MITRE framework is inferred from the id prefix and its
   tactic becomes the rule's classification axis.
 """
@@ -31,6 +33,8 @@ from dataclasses import dataclass, field
 import re
 from typing import Any
 
+from .fact_registry import FACT_NAMES
+
 
 class RuleValidationError(ValueError):
     pass
@@ -40,7 +44,7 @@ _ALLOWED_SEVERITIES = {"low", "medium", "high", "critical"}
 _ALLOWED_ACTIONS = {"allow", "audit", "quarantine", "block_and_audit"}
 _ALLOWED_MAPPING_STRENGTHS = {"direct", "analogical"}
 _ID_PREFIX = "cwfr-"
-_DETECTION_LAYERS = ("patterns", "signals", "semantics", "judge")
+_DETECTION_LAYERS = ("patterns", "semantics", "judge")
 # meta keys promoted to typed RuleDefinition fields; everything else survives in
 # the free-form ``meta`` mapping (author, status, source, license, ...).
 _RESERVED_META = {
@@ -61,7 +65,7 @@ _RESERVED_META = {
 # validation and evaluation expand conditions identically.
 _TERM_RE = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
 _LAYER_QUANTIFIER_RE = re.compile(
-    r"\b(any|all)\s+of\s+(patterns|signals|semantics|judge|them)\b"
+    r"\b(any|all)\s+of\s+(patterns|semantics|judge|them)\b"
 )
 _LIST_QUANTIFIER_RE = re.compile(r"\b(any|all)\s+of\s*\(([^)]*)\)")
 _BOOLEAN_WORDS = {"and", "or", "not", "true", "false"}
@@ -136,15 +140,6 @@ class PatternDef:
 
 
 @dataclass(frozen=True)
-class SignalDefinition:
-    """A structured fact over normalized trace events (IFC-grade evidence)."""
-
-    name: str
-    type: str
-    params: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
 class SemanticPattern:
     """An engine-scored similarity check against a natural-language description."""
 
@@ -198,7 +193,7 @@ class RuleDefinition:
     safety: str = ""
     meta: dict[str, Any] = field(default_factory=dict)
     patterns: tuple[PatternDef, ...] = ()
-    signals: tuple[SignalDefinition, ...] = ()
+    facts: tuple[str, ...] = ()
     semantics: tuple[SemanticPattern, ...] = ()
     judge_checks: tuple[JudgeCheck, ...] = ()
 
@@ -206,7 +201,6 @@ class RuleDefinition:
     def layer_names(self) -> dict[str, set[str]]:
         return {
             "patterns": {item.name for item in self.patterns},
-            "signals": {item.name for item in self.signals},
             "semantics": {item.name for item in self.semantics},
             "judge": {item.name for item in self.judge_checks},
         }
@@ -254,81 +248,6 @@ def _parse_patterns(raw_patterns: Any) -> tuple[PatternDef, ...]:
         else:
             raise RuleValidationError(f"Unsupported pattern type: {kind}")
     return tuple(patterns)
-
-
-def _arg_str(args: list[Any], index: int, ctor: str) -> str:
-    if index >= len(args):
-        raise RuleValidationError(f"signal constructor {ctor}() is missing argument {index + 1}")
-    return str(args[index])
-
-
-def _signal_from_ctor(name: str, ctor: str, args: list[Any]) -> SignalDefinition:
-    """Translate a DSL signal constructor into an engine ``{type, params}`` fact.
-
-    The constructor vocabulary is deliberately small and defender-readable; each
-    one lowers to a primitive the deterministic engine already understands.
-    """
-    if ctor == "feature":
-        feature = _arg_str(args, 0, ctor)
-        value = bool(args[1]) if len(args) > 1 else True
-        return SignalDefinition(name=name, type="feature_flag", params={"feature": feature, "value": value})
-    if ctor == "capability":
-        relation = _arg_str(args, 0, ctor)
-        if relation != "not_in_allowed":
-            raise RuleValidationError(f"capability() only supports not_in_allowed, got {relation!r}")
-        return SignalDefinition(name=name, type="capability_policy", params={"relation": "not_in_allowed_capabilities"})
-    if ctor == "canary_flow":
-        relation = _arg_str(args, 0, ctor)
-        if relation != "outside_allowed_sink":
-            raise RuleValidationError(f"canary_flow() only supports outside_allowed_sink, got {relation!r}")
-        return SignalDefinition(name=name, type="canary_flow", params={"relation": "outside_allowed_sink"})
-    if ctor == "schema_shape":
-        return SignalDefinition(name=name, type="schema_shape", params={"shape": _arg_str(args, 0, ctor)})
-    if ctor == "origin":
-        if not args:
-            raise RuleValidationError("origin() needs at least one origin value")
-        return SignalDefinition(name=name, type="event_field_in", params={"field": "origin", "values": [str(a) for a in args]})
-    if ctor == "sink_in":
-        if not args:
-            raise RuleValidationError("sink_in() needs at least one sink value")
-        return SignalDefinition(name=name, type="event_field_in", params={"field": "sink", "values": [str(a) for a in args]})
-    if ctor == "text_structure":
-        feature = _arg_str(args, 0, ctor)
-        if feature not in {"hidden_unicode", "untrusted_instruction_shape"}:
-            raise RuleValidationError(f"Unsupported text_structure feature: {feature}")
-        return SignalDefinition(name=name, type="text_structure", params={"feature": feature})
-    if ctor == "event_field_equals":
-        return SignalDefinition(
-            name=name,
-            type="event_field_equals",
-            params={"field": _arg_str(args, 0, ctor), "value": args[1] if len(args) > 1 else None},
-        )
-    if ctor == "event_field_in":
-        field_name = _arg_str(args, 0, ctor)
-        rest = args[1:]
-        values = rest[0] if len(rest) == 1 and isinstance(rest[0], list) else list(rest)
-        return SignalDefinition(name=name, type="event_field_in", params={"field": field_name, "values": [str(v) for v in values]})
-    if ctor == "event_field_contains":
-        return SignalDefinition(
-            name=name,
-            type="event_field_contains",
-            params={"field": _arg_str(args, 0, ctor), "value": _arg_str(args, 1, ctor)},
-        )
-    raise RuleValidationError(f"Unsupported signal constructor: {ctor}()")
-
-
-def _parse_signals(raw_signals: Any) -> tuple[SignalDefinition, ...]:
-    if raw_signals is None:
-        return ()
-    if not isinstance(raw_signals, list):
-        raise RuleValidationError("signals must be a list")
-    signals: list[SignalDefinition] = []
-    for raw in raw_signals:
-        name = _require_name(raw, "signals")
-        ctor = str(raw.get("ctor", ""))
-        args = list(raw.get("args", []))
-        signals.append(_signal_from_ctor(name, ctor, args))
-    return tuple(signals)
 
 
 def _parse_semantics(raw_semantics: Any) -> tuple[SemanticPattern, ...]:
@@ -489,22 +408,12 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
             raise RuleValidationError(f"meta.defense anchors must be D3FEND ids, got {ref.technique_id}")
 
     patterns = _parse_patterns(data.get("patterns"))
-    signals = _parse_signals(data.get("signals"))
     semantics = _parse_semantics(data.get("semantics"))
     judge_checks = _parse_judge(data.get("judge"))
 
-    # A rule's character is descriptive, not declared: it only needs at least
-    # one detection layer. Brittle-vs-structured is read from which layers it
-    # uses, and the head-to-head lives at the guard-stack level.
-    if not (patterns or signals or semantics or judge_checks):
-        raise RuleValidationError(
-            f"rule {rule_id} must declare at least one detection layer "
-            f"(patterns, signals, semantics, or judge)"
-        )
-
     # Names are unique across all layers (bare-$ references are global per rule).
     declared: set[str] = set()
-    for layer in (patterns, signals, semantics, judge_checks):
+    for layer in (patterns, semantics, judge_checks):
         for item in layer:
             if item.name in declared:
                 raise RuleValidationError(f"rule {rule_id} reuses term name ${item.name} across layers")
@@ -512,7 +421,6 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
 
     layer_names = {
         "patterns": {item.name for item in patterns},
-        "signals": {item.name for item in signals},
         "semantics": {item.name for item in semantics},
         "judge": {item.name for item in judge_checks},
     }
@@ -522,13 +430,26 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
         raise RuleValidationError(f"rule {rule_id} is missing a condition")
     referenced = _condition_references(condition, layer_names)
 
-    unknown = sorted(referenced - declared)
+    # ``$fact`` references are built-in (the frozen registry is their
+    # declaration), so they are "known" without appearing in any layer.
+    facts = tuple(sorted(referenced & FACT_NAMES))
+    unknown = sorted(referenced - declared - FACT_NAMES)
     if unknown:
         raise RuleValidationError(f"condition references undeclared terms: {', '.join('$' + u for u in unknown)}")
     dead = sorted(declared - referenced)
     if dead:
         raise RuleValidationError(
             f"rule {rule_id} declares terms never used in its condition: {', '.join('$' + d for d in dead)}"
+        )
+
+    # A rule's character is descriptive, not declared: it needs at least one
+    # detection layer or a built-in ``$fact`` reference. Brittle-vs-structured is
+    # read from which layers/facts it uses; the head-to-head lives at the stack
+    # level.
+    if not (patterns or semantics or judge_checks or facts):
+        raise RuleValidationError(
+            f"rule {rule_id} must declare at least one detection layer "
+            f"(patterns, semantics, or judge) or reference at least one fact"
         )
 
     tactic = next(
@@ -553,7 +474,7 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
         safety=_meta_str(meta, "safety", ""),
         meta=leftover_meta,
         patterns=patterns,
-        signals=signals,
+        facts=facts,
         semantics=semantics,
         judge_checks=judge_checks,
     )

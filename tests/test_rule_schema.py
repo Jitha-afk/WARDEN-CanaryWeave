@@ -14,14 +14,14 @@ def test_load_starter_rule_validates_required_metadata():
     rule = next(r for r in rules if r.id == "cwfr-0001")
     assert rule.name == "ServerSamplingOriginBoundary"
     assert rule.severity == "high"
-    assert {signal.name for signal in rule.signals} == {
-        "origin_server_sampling",
-        "tool_plan_shape",
-        "no_grant",
+    assert set(rule.facts) == {
+        "from_untrusted_origin",
+        "tool_call_shape",
+        "capability_denied",
     }
 
 
-def test_validate_rule_rejects_unknown_condition_signal():
+def test_validate_rule_rejects_unknown_condition_term():
     rule_dict = {
         "name": "BrokenRule",
         "meta": {
@@ -30,8 +30,7 @@ def test_validate_rule_rejects_unknown_condition_signal():
             "action": "block_and_audit",
             "technique": "T1059 (Execution, analogical)",
         },
-        "signals": [{"name": "known", "ctor": "event_field_equals", "args": ["origin", "server"]}],
-        "condition": "$known and $missing_signal",
+        "condition": "$from_untrusted_origin and $missing_signal",
     }
     with pytest.raises(RuleValidationError, match="missing_signal"):
         validate_rule(rule_dict)

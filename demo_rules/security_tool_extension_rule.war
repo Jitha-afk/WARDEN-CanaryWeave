@@ -1,8 +1,8 @@
 // CanaryWeave WARDEN demo ruleset: security-tool extension request.
 //
-// A single kind: policy rule used by `warden check --rule-file` demos. It pairs
-// a structured feature signal with engine semantics and a FIDES judge question,
-// showing what the IFC gate would hand the quarantined model.
+// A single rule used by `warden check --rule-file` demos. It pairs an engine
+// semantic with a FIDES judge question, showing what the IFC gate would hand
+// the quarantined model.
 
 rule SecurityToolExtensionRule {
     meta:
@@ -16,9 +16,8 @@ rule SecurityToolExtensionRule {
         status      = demo
         description = "Detects requests for help developing extensions for cybersecurity tools."
         safety      = "Demo rule uses high-level structural detection only; no exploit steps, code, or operational tool guidance."
-    signals:
-        $security_tool_extension_shape = feature(security_tool_extension_shape)
     semantics:
+        $security_tool_extension_shape = "security tool extension structure" (0.70)
         $tool_dev_request           = "Prompt asks for development help that modifies or extends a security tool." (0.70)
         $security_tool_modification = "Prompt targets extension or modification of a cybersecurity framework or tool." (0.70)
     judge:
