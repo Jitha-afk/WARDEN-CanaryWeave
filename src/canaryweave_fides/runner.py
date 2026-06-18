@@ -256,14 +256,14 @@ def run_evaluation(
             "evidence_rules_configured": len(config.fides_test_double_evidence_rules),
             "fixture_verdicts_configured": len(test_double_results),
             "provider_calls_enabled": False,
-            "judge_transcripts_included": False,
+            "judge_transcripts_included": True,
             "label": "FIDES TEST DOUBLE EVIDENCE MODE" if config.fides_mode == FidesJudgeMode.TEST_DOUBLE else "FIDES DISABLED",
         },
         "defense_stacks": stack_counts,
         "adapter_results": [result.to_dict() for result in adapter_results],
         "case_results": per_case_results,
         "provider_calls": provider_calls,
-        "safety_boundary": "public-safe report: payload text and private custody fields are excluded",
+        "safety_boundary": "raw prompt/tool text and judge transcripts are included when available",
     }
     if private_review_csv is not None:
         report["private_review_csv"] = str(private_review_csv)

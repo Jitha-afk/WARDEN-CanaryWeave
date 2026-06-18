@@ -230,7 +230,7 @@ def test_provider_placeholder_never_makes_real_provider_calls():
         ProviderPlaceholderFidesJudge().judge(facts)
 
 
-def test_fides_judge_result_public_serialization_omits_transcript():
+def test_fides_judge_result_serialization_includes_transcript():
     transcript = "PRIVATE_JUDGE_TRANSCRIPT_SHOULD_NOT_BE_PUBLIC"
     result = FidesJudgeResult(
         verdict="unsafe",
@@ -241,9 +241,4 @@ def test_fides_judge_result_public_serialization_omits_transcript():
     )
 
     public = result.to_dict()
-    assert "judge_transcript" not in public
-    assert transcript not in str(public)
-    assert public["transcript_included"] is False
-
-    private = result.to_private_dict()
-    assert private["judge_transcript"] == transcript
+    assert public["judge_transcript"] == transcript

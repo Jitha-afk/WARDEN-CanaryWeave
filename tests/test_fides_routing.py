@@ -33,7 +33,7 @@ def _facts(case_id: str = "case.route.001", text: str = "marker present") -> Nor
         origin_labels=("user",),
         trust_labels=("trusted",),
         policy={"trusted_origins": ("user",), "allowed_tools": ("read_task",), "allowed_sinks": ("local_audit",)},
-        redacted_text=text,
+        text=text,
     )
 
 

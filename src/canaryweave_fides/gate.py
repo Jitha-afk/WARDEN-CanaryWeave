@@ -76,7 +76,7 @@ class FidesJudgeResult:
             object.__setattr__(self, "judge_transcript", str(self.judge_transcript))
 
     def to_dict(self) -> dict[str, Any]:
-        """Public-safe judge result export; no raw transcript is included."""
+        """Judge result export including the raw transcript when available."""
         verdict = FidesVerdict.coerce(self.verdict)
         recommended = Decision.coerce(self.recommended_decision)
         return {
@@ -86,13 +86,8 @@ class FidesJudgeResult:
             "recommended_decision": recommended.value,
             "latency_ms": self.latency_ms,
             "provider_calls": self.provider_calls,
-            "transcript_included": False,
+            "judge_transcript": self.judge_transcript,
         }
-
-    def to_private_dict(self) -> dict[str, Any]:
-        data = self.to_dict()
-        data["judge_transcript"] = self.judge_transcript
-        return data
 
 
 class FidesJudge(Protocol):
@@ -136,8 +131,8 @@ class StaticFidesJudge:
 
     This is only a CI/test harness for the FIDES interface. The deterministic
     policy engine is WARDEN; FIDES itself remains the LLM-as-judge layer in the
-    research architecture. Test-double results are public-safe by construction:
-    they never record provider calls and never retain judge transcripts.
+    research architecture. Test-double results never record provider calls, and
+    include judge transcripts only if a fixture explicitly supplies one.
     """
 
     mode = FidesJudgeMode.TEST_DOUBLE
@@ -260,11 +255,11 @@ def build_test_double_evidence_results(
     cases: Iterable[AttackCase],
     rules: Iterable[Mapping[str, Any]],
 ) -> dict[str, FidesJudgeResult]:
-    """Create deterministic fixture verdicts for selected public-safe cases.
+    """Create deterministic fixture verdicts for selected cases.
 
-    Matching happens against public `AttackCase` labels/features, allowing CI and
+    Matching happens against `AttackCase` labels/features, allowing CI and
     public evidence runs to simulate a FIDES judge catch on WARDEN misses without
-    provider calls, prompt transcripts, model outputs, or raw payload custody.
+    provider calls. Raw case text and transcripts are included when present.
     The gate still invokes FIDES only after WARDEN allows a case.
     """
     results: dict[str, FidesJudgeResult] = {}
@@ -309,7 +304,7 @@ class ProviderPlaceholderFidesJudge:
 
 
 class ProviderBackedFidesJudge:
-    """Provider-backed FIDES judge over public-safe normalized facts."""
+    """Provider-backed FIDES judge over normalized facts with raw text."""
 
     mode = FidesJudgeMode.COPILOT_SDK
 
@@ -445,8 +440,8 @@ def _facts_to_trace_and_policy(facts: NormalizedFacts) -> tuple[tuple[TraceEvent
         schema_shape = "tool_plan_like_json"
     origin = facts.origin_labels[0] if facts.origin_labels else "unknown"
     text_parts: list[str] = []
-    if facts.redacted_text:
-        text_parts.append(facts.redacted_text)
+    if facts.text:
+        text_parts.append(facts.text)
     if bool(facts.features.get("instruction_shape")):
         text_parts.append("policy boundary directive structure")
     if bool(facts.features.get("command_execution_shape")):
@@ -528,9 +523,9 @@ def evaluate_regex_baseline(facts: NormalizedFacts) -> GateDecision:
         reason_codes.append("regex.canary_marker")
     if bool(facts.features.get("obfuscated")):
         reason_codes.append("regex.obfuscated_structure")
-    redacted = (facts.redacted_text or "").lower()
-    if "[canary]" in redacted:
-        reason_codes.append("regex.redacted_canary")
+    raw_text = (facts.text or "").lower()
+    if "canary" in raw_text:
+        reason_codes.append("regex.canary_text")
 
     if reason_codes:
         return GateDecision(

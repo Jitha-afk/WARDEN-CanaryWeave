@@ -389,7 +389,7 @@ def main(argv: list[str] | None = None) -> int:
     eval_parser.add_argument("--dataset", action="append", default=None, help="Limit run to one or more configured dataset IDs")
     eval_parser.add_argument("--iterations", type=int, default=50)
     eval_parser.add_argument("--output", type=Path, default=Path("artifacts/evals/gate_eval_report.json"))
-    eval_parser.add_argument("--private-review-csv", type=Path, default=None, help="Optional private reviewer CSV with raw input/output custody fields; keep under a git-ignored controlled path")
+    eval_parser.add_argument("--private-review-csv", type=Path, default=None, help="Optional reviewer CSV with raw input/output fields; keep under a git-ignored review path")
     eval_parser.add_argument("--fides-mode", choices=["disabled", "test_double", "provider_placeholder", "copilot_sdk"], default=None, help="Override configured FIDES judge mode")
     eval_parser.add_argument("--provider-calls-enabled", action="store_true", help="Explicitly allow provider-backed FIDES calls")
     eval_parser.add_argument("--model", default=None, help="Provider model id for quarantined FIDES judge mode")

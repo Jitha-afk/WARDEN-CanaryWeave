@@ -434,7 +434,7 @@ class ASBAdapter(DatasetAdapter):
             status=status,
             cases=tuple(cases),
             message=f"{self.dataset_id} adapter loaded {len(cases)} cases with {errors} unreadable files skipped",
-            safe_metadata={"files_inspected": len(files), "unreadable_files": errors, "public_export": "redacted_features_only"},
+            safe_metadata={"files_inspected": len(files), "unreadable_files": errors, "public_export": "raw_text_included"},
         )
 
     def _discover_files(self, root: Path) -> list[Path]:

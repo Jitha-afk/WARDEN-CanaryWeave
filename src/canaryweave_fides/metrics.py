@@ -72,5 +72,5 @@ def summarize_smoke(cases: dict[str, SmokeCase], rule_engine: RuleEngine, fides_
         "regex_false_negatives_caught_by_rules": len((attack_ids - regex_blocked) & rules_blocked),
         "rule_misses_caught_by_fides_ifc": len((attack_ids - rules_blocked) & fides_blocked),
         "provider_calls_made": 0,
-        "safety_boundary": "No raw payload text in public exports; controlled raw custody is represented only by categories and structural traces.",
+        "safety_boundary": "Raw prompt/tool text is included in records so outcomes can be inspected directly.",
     }

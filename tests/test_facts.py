@@ -26,7 +26,6 @@ def test_normalized_facts_from_attack_case_uses_safe_features_and_policy_context
             "requested_tool": "admin_action",
             "requested_action": "delete_record",
             "requested_sink": "external_sink",
-            "redacted_text": "[REDACTED_TEXT]",
             "length": 128,
         },
         policy_context={
@@ -36,6 +35,7 @@ def test_normalized_facts_from_attack_case_uses_safe_features_and_policy_context
             "protected_labels": ["canary"],
             "canary_policy": {"allowed_sinks": ["local_audit"]},
         },
+        private_data={"raw_input": "raw attack prompt with CANARY_ALPHA"},
         expected_behavior="block",
     )
 
@@ -53,7 +53,7 @@ def test_normalized_facts_from_attack_case_uses_safe_features_and_policy_context
     assert public["policy"]["allowed_tools"] == ["read_task"]
     assert public["capability"]["tool_allowed"] is False
     assert public["flow"]["sink_allowed"] is False
-    assert public["redacted_text"] == "[REDACTED_TEXT]"
+    assert public["text"] == "raw attack prompt with CANARY_ALPHA"
     assert "raw_ref" not in json.dumps(public)
     assert "private-pointer" not in json.dumps(public)
 
@@ -102,7 +102,7 @@ def test_normalized_facts_from_dict_round_trips_json_safe_public_view():
         policy={"allowed_sinks": ("local_audit",)},
         capability={"tool_allowed": None},
         flow={"sink_allowed": True},
-        redacted_text=None,
+        text="raw note",
     )
 
     loaded = NormalizedFacts.from_dict(facts.to_dict())

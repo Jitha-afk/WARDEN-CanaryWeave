@@ -47,7 +47,7 @@ def test_query_llm_fides_blocks_when_rules_allow_but_ifc_policy_fails():
     assert result.blocked_by == "fides_ifc"
 
 
-def test_query_result_public_serialization_omits_model_output_and_judge_transcript():
+def test_query_result_serialization_includes_model_output_and_judge_transcript():
     private_output = "PRIVATE_MODEL_OUTPUT_SHOULD_NOT_BE_PUBLIC"
     private_transcript = "PRIVATE_JUDGE_TRANSCRIPT_SHOULD_NOT_BE_PUBLIC"
     result = QueryResult(
@@ -68,12 +68,5 @@ def test_query_result_public_serialization_omits_model_output_and_judge_transcri
     )
 
     public = result.to_dict()
-    public_text = str(public)
-    assert "output_text" not in public
-    assert private_output not in public_text
-    assert private_transcript not in public_text
-    assert public["fides"]["transcript_included"] is False
-
-    private = result.to_private_dict()
-    assert private["output_text"] == private_output
-    assert private["fides"]["judge_transcript"] == private_transcript
+    assert public["output_text"] == private_output
+    assert public["fides"]["judge_transcript"] == private_transcript
