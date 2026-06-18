@@ -1,0 +1,21 @@
+// CanaryWeave WARDEN signature ruleset: prompt-injection / jailbreak signature (ATLAS AML.T0051).
+//
+// A patterns-only ruleset — public, generic host indicators
+// (ATT&CK paths/binaries/tropes), never dataset strings.
+
+rule PromptInjectionJailbreak {
+    meta:
+        id          = cwfr-ppe-0001
+        version     = 0.1.0
+        severity    = low
+        scope       = text_field
+        action      = quarantine
+        technique   = AML.T0051 (Initial Access, direct)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "Untrusted content trying to override, replace, or jailbreak the system prompt."
+    patterns:
+        $instruction_override = /(?:ignore\s+(?:all\s+)?(?:previous|above|prior|earlier)\s+(?:instructions?|prompts?|rules?)|you\s+are\s+now\s+(?:a|an|the)|new\s+(?:instructions?|rules?|prompt)\s*[:=]|<\s*(?:system|instruction|prompt)\s*>|forget\s+(?:all\s+)?(?:everything|your\s+(?:rules?|instructions?|training))|disregard\s+(?:all\s+)?(?:prior|previous|your)|act\s+as\s+(?:if|though)|pretend\s+(?:you(?:'re|\s+are)|to\s+be)|roleplay\s+as|jailbreak(?:ed)?|(?:DAN|STAN|DUDE)\s*[:=]?|developer\s+mode\s*[:=]?|admin(?:istrator)?\s+mode|unlimited\s+mode|(?:in\s+)?all\s+(?:future\s+)?(?:responses?|replies?|interactions?))/i
+    condition:
+        any of patterns
+}

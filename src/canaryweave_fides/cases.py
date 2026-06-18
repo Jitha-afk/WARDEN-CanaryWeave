@@ -150,7 +150,7 @@ class AttackCase:
             object.__setattr__(self, "raw_ref", str(self.raw_ref))
 
     def to_dict(self) -> dict[str, Any]:
-        """Public, JSON-safe export. Private raw custody fields are excluded."""
+        """JSON-safe export; adapter provenance keys remain excluded."""
         case_kind = CaseKind.coerce(self.case_kind)
         expected_behavior = ExpectedBehavior.coerce(self.expected_behavior)
         return {

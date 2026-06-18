@@ -1,0 +1,22 @@
+// CanaryWeave WARDEN signature ruleset: local data-collection signatures (ATT&CK TA0009).
+//
+// A patterns-only ruleset — public, generic host indicators
+// (ATT&CK paths/binaries/tropes), never dataset strings.
+
+rule DataCollectionTargets {
+    meta:
+        id          = cwfr-ppe-0020
+        version     = 0.1.0
+        severity    = medium
+        scope       = text_field
+        action      = audit
+        technique   = T1005 (Collection, direct)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "Local mail spools and note databases targeted for data collection."
+    patterns:
+        $mail_spool      = //var/(mail|spool/mail)//i
+        $sticky_notes_db = /\\Microsoft\.MicrosoftStickyNotes_.*\\LocalState\\plum\.sqlite/i
+    condition:
+        any of patterns
+}

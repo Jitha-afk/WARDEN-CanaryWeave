@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-from .rule_schema import FidesCheck
+from .rule_schema import JudgeCheck
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,27 @@ class PolicyContext:
 
 
 @dataclass(frozen=True)
+class EvaluationRecord:
+    """The flat surface a rule (or test case) reasons over: raw ``text`` plus the
+    six frozen boolean ``facts``.
+
+    This is the single shape both the gate and ``query_llm`` evaluate. The richer
+    :class:`TraceEvent` window is demoted to framework-internal plumbing that
+    *populates* this record — synthetically from a trace today, from the MCP wire
+    later — which is what lets a test case be literally ``(record, expected)``.
+    """
+
+    text: str = ""
+    facts: Mapping[str, bool] = field(default_factory=dict)
+
+    def fact(self, name: str) -> bool:
+        return bool(self.facts.get(name, False))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"text": self.text, "facts": {key: bool(value) for key, value in self.facts.items()}}
+
+
+@dataclass(frozen=True)
 class RuleHit:
     rule_id: str
     rule_name: str
@@ -60,7 +82,7 @@ class PendingFidesCheck:
     rule_id: str
     rule_name: str
     action: str
-    checks: tuple[FidesCheck, ...]
+    checks: tuple[JudgeCheck, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -95,17 +117,7 @@ class FidesVerdict:
     judge_transcript: str | None = field(default=None, repr=False, compare=False)
 
     def to_dict(self) -> dict[str, Any]:
-        """Public-safe verdict export; raw judge transcripts are never included."""
-        return {
-            "verdict": self.verdict,
-            "confidence": self.confidence,
-            "blocks": self.blocks,
-            "policy_checks": list(self.policy_checks),
-            "rationale_short": self.rationale_short,
-            "transcript_included": False,
-        }
-
-    def to_private_dict(self) -> dict[str, Any]:
+        """Verdict export including the raw judge transcript when available."""
         return {
             "verdict": self.verdict,
             "confidence": self.confidence,
@@ -127,13 +139,7 @@ class QueryResult:
     output_text: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        """Public-safe query result export.
-
-        The quarantined model output and any judge transcript remain private
-        custody fields and are intentionally omitted from default serialization.
-        Use to_private_dict() for local debugging artifacts that must not be
-        published.
-        """
+        """Query result export including model output and any judge transcript."""
         return {
             "allowed": self.allowed,
             "model_called": self.model_called,
@@ -141,17 +147,5 @@ class QueryResult:
             "preflight": self.preflight.to_dict(),
             "postflight": self.postflight.to_dict() if self.postflight else None,
             "fides": self.fides.to_dict() if self.fides else None,
-            "model_output_included": False,
-            "judge_transcript_included": False,
-        }
-
-    def to_private_dict(self) -> dict[str, Any]:
-        return {
-            "allowed": self.allowed,
-            "model_called": self.model_called,
-            "blocked_by": self.blocked_by,
-            "preflight": self.preflight.to_dict(),
-            "postflight": self.postflight.to_dict() if self.postflight else None,
-            "fides": self.fides.to_private_dict() if self.fides else None,
             "output_text": self.output_text,
         }

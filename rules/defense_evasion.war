@@ -1,0 +1,21 @@
+// CanaryWeave WARDEN signature ruleset: defense-evasion signatures (ATT&CK TA0005).
+//
+// A patterns-only ruleset — public, generic host indicators
+// (ATT&CK paths/binaries/tropes), never dataset strings.
+
+rule WindowsDefenderExclusionTampering {
+    meta:
+        id          = cwfr-ppe-0011
+        version     = 0.1.0
+        severity    = high
+        scope       = text_field
+        action      = block_and_audit
+        technique   = T1562.001 (Defense Evasion, direct)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "Reading or modifying Windows Defender exclusion lists."
+    patterns:
+        $defender_exclusions = /\\Windows Defender\\Exclusions\\(Paths|Extensions|Processes)/i
+    condition:
+        any of patterns
+}

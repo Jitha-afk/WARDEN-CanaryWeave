@@ -1,0 +1,38 @@
+// CanaryWeave WARDEN signature ruleset: execution & living-off-the-land signatures (ATT&CK TA0002).
+//
+// A patterns-only ruleset — public, generic host indicators
+// (ATT&CK paths/binaries/tropes), never dataset strings.
+
+rule JsonRpcProtocolAbuse {
+    meta:
+        id          = cwfr-ppe-0002
+        version     = 0.1.0
+        severity    = low
+        scope       = text_field
+        action      = block_and_audit
+        technique   = T1059 (Execution, analogical)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "Malformed or prototype-polluting JSON-RPC structures and null-byte smuggling."
+    patterns:
+        $jsonrpc_abuse = /(?:["']\s*jsonrpc\s*["']\s*:\s*["'][^2"]|["']\s*method\s*["']\s*:\s*["'](?:__proto__|constructor|prototype)|["']\s*id\s*["']\s*:\s*(?:\{|null\s*[,}])|\\u0000|%00|["']\s*params\s*["']\s*:[\s\S]*?(?:__proto__|eval|Function\s*\())/i
+    condition:
+        any of patterns
+}
+
+rule LivingOffTheLandExecution {
+    meta:
+        id          = cwfr-ppe-0003
+        version     = 0.1.0
+        severity    = low
+        scope       = text_field
+        action      = block_and_audit
+        technique   = T1059 (Execution, direct)
+        author      = "WARDEN PPE Benchmark"
+        status      = benchmark
+        description = "Living-off-the-land binary invocations used to download or execute payloads."
+    patterns:
+        $lolbin_invocation = /(?:powershell\s+[^\n]*(?:iex|invoke-expression|downloadstring|downloadfile|webclient|bitstransfer|start-bitstransfer)|certutil\s+[^\n]*-(?:urlcache|decode)|bitsadmin\s+[^\n]*/transfer|mshta\s+(?:vbscript|javascript|http)|regsvr32\s+[^\n]*/[siu][^\n]*(?:http|\\\\)|rundll32\s+[^\n]*(?:javascript|http|shell32)|wmic\s+[^\n]*(?:process\s+call\s+create|os\s+get))/i
+    condition:
+        any of patterns
+}

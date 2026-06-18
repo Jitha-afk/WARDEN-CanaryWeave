@@ -46,7 +46,7 @@ def _restore_policy_tuples(policy: Mapping[str, Any]) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class NormalizedFacts:
-    """OPA-like public-safe gate input derived from AttackCase safe features."""
+    """OPA-like gate input derived from AttackCase facts and raw text."""
 
     case_id: str
     dataset_id: str
@@ -60,7 +60,7 @@ class NormalizedFacts:
     policy: Mapping[str, Any] = field(default_factory=dict)
     capability: Mapping[str, Any] = field(default_factory=dict)
     flow: Mapping[str, Any] = field(default_factory=dict)
-    redacted_text: str | None = None
+    text: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "case_id", str(self.case_id))
@@ -75,13 +75,14 @@ class NormalizedFacts:
         object.__setattr__(self, "policy", _as_mapping(self.policy))
         object.__setattr__(self, "capability", _as_mapping(self.capability))
         object.__setattr__(self, "flow", _as_mapping(self.flow))
-        if self.redacted_text is not None:
-            object.__setattr__(self, "redacted_text", str(self.redacted_text))
+        if self.text is not None:
+            object.__setattr__(self, "text", str(self.text))
 
     @classmethod
     def from_attack_case(cls, case: AttackCase) -> "NormalizedFacts":
         safe = _as_mapping(case.safe_features)
         context = _as_mapping(case.policy_context)
+        private = _as_mapping(case.private_data)
 
         origin_labels = _as_tuple(_first_mapping_value(safe, ("origin_labels", "origins", "origin")))
         trust_labels = _as_tuple(_first_mapping_value(safe, ("trust_labels", "trust", "integrity")))
@@ -169,7 +170,7 @@ class NormalizedFacts:
                 "protected_data_flow": protected_flow,
                 "protected_flow_allowed": flow_allowed,
             },
-            redacted_text=_first_mapping_value(safe, ("redacted_text", "redacted")),
+            text=str(private.get("raw_input") or "") or None,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -186,7 +187,7 @@ class NormalizedFacts:
             "policy": _public_safe(self.policy),
             "capability": _public_safe(self.capability),
             "flow": _public_safe(self.flow),
-            "redacted_text": self.redacted_text,
+            "text": self.text,
         }
 
     @classmethod
@@ -204,5 +205,5 @@ class NormalizedFacts:
             policy=_restore_policy_tuples(data.get("policy", {})),
             capability=_as_mapping(data.get("capability", {})),
             flow=_as_mapping(data.get("flow", {})),
-            redacted_text=data.get("redacted_text"),
+            text=data.get("text"),
         )

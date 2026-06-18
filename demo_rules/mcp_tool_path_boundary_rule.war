@@ -1,46 +1,29 @@
-id: cwfr-demo-0002
-name: MCPToolPathBoundaryRule
-version: 0.1.0
-category: demo/mcp_tool_path_boundary
-severity: high
-scope: prompt
-description: Detects an MCP tool call shape that requests file access outside an allowed workspace boundary.
-meta:
-  author: Project Open Hand Monk
-  status: demo
-keywords:
-  - name: mcp_tool_call
-    type: exact
-    value: tool_call
-  - name: read_file
-    type: exact
-    value: read_file
-  - name: relative_parent_path
-    type: exact
-    value: ".."
-semantics:
-  - name: path_boundary_escape
-    description: Prompt requests file or resource access outside the authorized workspace boundary.
-    threshold: 0.70
-  - name: mcp_tool_path_access
-    description: Prompt is shaped like an MCP tool call requesting path-based resource access.
-    threshold: 0.70
-fides:
-  - name: path_boundary_judge
-    prompt: Assess whether public-safe normalized facts indicate an MCP tool path-boundary violation.
-    threshold: 0.65
-signals:
-  - name: path_boundary_shape
-    type: feature_flag
-    feature: path_boundary_shape
-  - name: capability_not_granted
-    type: capability_policy
-    relation: not_in_allowed_capabilities
-condition: signals.path_boundary_shape and signals.capability_not_granted
-recommended_action: block_and_audit
-fixtures:
-  positive:
-    - demo_mcp_tool_path_boundary_request
-  negative:
-    - demo_allowed_workspace_read
-safety_notes: Demo rule uses a synthetic relative-path shape only; no sensitive filesystem path or real private file is included.
+// CanaryWeave WARDEN demo ruleset: MCP tool path-boundary escape.
+//
+// A single rule used by `warden check --rule-file` demos. The deterministic
+// core fires on a relative-path traversal indicator or a path-boundary
+// semantic; the FIDES judge question is what the IFC gate would ask downstream.
+
+rule MCPToolPathBoundaryRule {
+    meta:
+        id          = cwfr-demo-0002
+        version     = 0.1.0
+        severity    = high
+        scope       = prompt
+        action      = block_and_audit
+        technique   = T1005 (Collection, analogical)
+        defense     = D3-FAM (File Access Mediation)
+        author      = "Project Open Hand Monk"
+        status      = demo
+        description = "Detects an MCP tool call shape that requests file access outside an allowed workspace boundary."
+        safety      = "Demo rule matches a generic relative-path traversal indicator; no sensitive filesystem path or real private file is included."
+    patterns:
+        $path_traversal = /\.\.[\\/]/
+    semantics:
+        $path_boundary_escape = "Prompt requests file or resource access outside the authorized workspace boundary." (0.70)
+        $mcp_tool_path_access = "Prompt is shaped like an MCP tool call requesting path-based resource access." (0.70)
+    judge:
+        $path_boundary_judge = "Assess whether public-safe normalized facts indicate an MCP tool path-boundary violation." (0.65)
+    condition:
+        $path_traversal or $path_boundary_escape or $mcp_tool_path_access or $path_boundary_judge
+}

@@ -25,17 +25,21 @@ def resource_root() -> Path:
 
 
 def validate_rules_root(root: Path | str, *, expected_count: int = EXPECTED_RULE_COUNT) -> Path:
-    """Return a valid rules root or raise a clear portability error."""
+    """Return a valid rules root or raise a clear portability error.
+
+    Rules are authored as multi-rule rulesets, so the on-disk ``.war`` *file*
+    count is not meaningful; the guard only confirms the tree exists and ships at
+    least one ruleset. The exact rule count is asserted by the test suite via the
+    loader instead.
+    """
     rules = Path(root)
     if not rules.exists():
         raise FileNotFoundError(f"rules root does not exist: {rules}")
     if not rules.is_dir():
         raise NotADirectoryError(f"rules root is not a directory: {rules}")
-    rule_files = tuple(rules.rglob("*.war"))
-    if len(rule_files) < expected_count:
+    if not any(rules.rglob("*.war")):
         raise RuntimeError(
-            f"rules root {rules} contains {len(rule_files)} .war rules; "
-            f"expected at least {expected_count} .war rules in packaged/source rules"
+            f"rules root {rules} contains no .war rulesets; packaged/source rules are missing"
         )
     return rules
 

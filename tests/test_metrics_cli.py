@@ -17,4 +17,4 @@ def test_smoke_metrics_compare_regex_rules_and_fides(tmp_path):
     assert report["defense_stacks"]["structured_rule_guard"]["asr"] == 0.2
     assert report["defense_stacks"]["rules_plus_fides_ifc"]["asr"] == 0.0
     assert report["provider_calls_made"] == 0
-    assert "raw payload" in report["safety_boundary"].lower()
+    assert "raw prompt/tool text" in report["safety_boundary"].lower()

@@ -263,7 +263,7 @@ def run_evaluation(
         "adapter_results": [result.to_dict() for result in adapter_results],
         "case_results": per_case_results,
         "provider_calls": provider_calls,
-        "safety_boundary": "public-safe report: payload text and private custody fields are excluded",
+        "safety_boundary": "raw prompt/tool text and judge transcripts are included when available",
     }
     if private_review_csv is not None:
         report["private_review_csv"] = str(private_review_csv)
