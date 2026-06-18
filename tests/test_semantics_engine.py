@@ -6,7 +6,6 @@ from canaryweave_fides.rule_loader import parse_ruleset
 _SEM_TEMPLATE = """rule {name} {{
     meta:
         id          = {rule_id}
-        kind        = policy
         severity    = {severity}
         technique   = T1059 (Execution, analogical)
     semantics:

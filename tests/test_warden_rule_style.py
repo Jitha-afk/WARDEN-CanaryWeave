@@ -18,7 +18,6 @@ RICH_CONDITION = (
 RICH_RULE = """rule RichStructuredRule {{
     meta:
         id          = cwfr-rich-0001
-        kind        = policy
         version     = 0.2.0
         severity    = high
         scope       = event_window
@@ -48,7 +47,6 @@ def test_rich_warden_rule_accepts_meta_patterns_semantics_and_judge_sections():
     (rule,) = parse_ruleset(RICH_RULE)
 
     assert rule.id == "cwfr-rich-0001"
-    assert rule.kind == "policy"
     assert rule.meta["status"] == "experimental"
     assert rule.patterns[0].name == "path_traversal_shape"
     assert rule.semantics[0].threshold == 0.72

@@ -14,7 +14,6 @@ ROOT = Path(__file__).resolve().parents[1]
 _SIG_TEMPLATE = """rule {name} {{
     meta:
         id          = {rule_id}
-        kind        = signature
         severity    = {severity}
         technique   = T1059 (Execution, direct)
     patterns:
@@ -90,7 +89,6 @@ def test_wildcard_quantifier_requires_declared_section():
     text = """rule NoPatterns {
     meta:
         id          = cwfr-test-0009
-        kind        = policy
         severity    = low
         technique   = T1059 (Execution, analogical)
     signals:
@@ -107,7 +105,6 @@ def test_policy_rule_without_relational_layer_is_rejected():
     text = """rule Empty {
     meta:
         id          = cwfr-test-0002
-        kind        = policy
         severity    = low
         technique   = T1059 (Execution, analogical)
     condition:
@@ -123,4 +120,4 @@ def test_ppe_benchmark_corpus_loads():
     ppe = [rule for rule in rules if rule.id.startswith("cwfr-ppe-")]
     assert len(ppe) == 20
     assert all(rule.patterns for rule in ppe)
-    assert all(rule.kind == "signature" for rule in ppe)
+    assert all(not (rule.signals or rule.semantics or rule.judge_checks) for rule in ppe)

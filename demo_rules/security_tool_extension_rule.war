@@ -7,7 +7,6 @@
 rule SecurityToolExtensionRule {
     meta:
         id          = cwfr-demo-0001
-        kind        = policy
         version     = 0.1.0
         severity    = high
         scope       = prompt

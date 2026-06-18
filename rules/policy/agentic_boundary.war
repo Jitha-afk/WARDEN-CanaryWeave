@@ -7,7 +7,6 @@
 rule ServerSamplingOriginBoundary {
     meta:
         id          = cwfr-0001
-        kind        = policy
         version     = 0.2.0
         severity    = high
         scope       = event_window
@@ -33,7 +32,6 @@ rule ServerSamplingOriginBoundary {
 rule CanaryBoundaryCrossing {
     meta:
         id          = cwfr-0002
-        kind        = policy
         version     = 0.1.0
         severity    = critical
         scope       = trace

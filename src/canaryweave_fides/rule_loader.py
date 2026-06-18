@@ -6,7 +6,6 @@ The DSL is YARA-flavoured and line-oriented. A file is a ruleset of one or more
     rule CommandOrCodeExecutionRequest {
         meta:
             id          = cwfr-0106
-            kind        = policy
             severity    = high
             action      = block_and_audit
             technique   = T1059 (Execution, analogical)

@@ -6,7 +6,6 @@
 rule WindowsDefenderExclusionTampering {
     meta:
         id          = cwfr-ppe-0011
-        kind        = signature
         version     = 0.1.0
         severity    = high
         scope       = text_field

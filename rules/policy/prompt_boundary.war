@@ -7,7 +7,6 @@
 rule UntrustedInstructionShape {
     meta:
         id          = cwfr-0003
-        kind        = policy
         version     = 0.1.0
         severity    = medium
         scope       = text_field
@@ -31,7 +30,6 @@ rule UntrustedInstructionShape {
 rule HiddenUnicodeStructure {
     meta:
         id          = cwfr-0004
-        kind        = policy
         version     = 0.1.0
         severity    = medium
         scope       = text_field
@@ -52,7 +50,6 @@ rule HiddenUnicodeStructure {
 rule ProtectedContextExtraction {
     meta:
         id          = cwfr-0108
-        kind        = policy
         version     = 0.1.0
         severity    = medium
         scope       = event_window
@@ -77,7 +74,6 @@ rule ProtectedContextExtraction {
 rule DeceptiveSocialEngineeringTasking {
     meta:
         id          = cwfr-0110
-        kind        = policy
         version     = 0.1.0
         severity    = medium
         scope       = event_window

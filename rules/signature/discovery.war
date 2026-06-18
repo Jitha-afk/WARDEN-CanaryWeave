@@ -6,7 +6,6 @@
 rule WindowsDiscoveryArtifacts {
     meta:
         id          = cwfr-ppe-0013
-        kind        = signature
         version     = 0.1.0
         severity    = medium
         scope       = text_field
@@ -25,7 +24,6 @@ rule WindowsDiscoveryArtifacts {
 rule UnixSystemDiscoveryFiles {
     meta:
         id          = cwfr-ppe-0019
-        kind        = signature
         version     = 0.1.0
         severity    = medium
         scope       = text_field

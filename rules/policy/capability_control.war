@@ -8,7 +8,6 @@
 rule CredentialOrSecretExposure {
     meta:
         id          = cwfr-0104
-        kind        = policy
         version     = 0.1.0
         severity    = critical
         scope       = event_window
@@ -32,7 +31,6 @@ rule CredentialOrSecretExposure {
 rule PathOrUriBoundaryEscape {
     meta:
         id          = cwfr-0105
-        kind        = policy
         version     = 0.1.0
         severity    = high
         scope       = event_window
@@ -57,7 +55,6 @@ rule PathOrUriBoundaryEscape {
 rule CommandOrCodeExecutionRequest {
     meta:
         id          = cwfr-0106
-        kind        = policy
         version     = 0.1.0
         severity    = high
         scope       = event_window
@@ -82,7 +79,6 @@ rule CommandOrCodeExecutionRequest {
 rule UnapprovedNetworkRequest {
     meta:
         id          = cwfr-0107
-        kind        = policy
         version     = 0.1.0
         severity    = high
         scope       = event_window
@@ -107,7 +103,6 @@ rule UnapprovedNetworkRequest {
 rule DestructiveActionIntent {
     meta:
         id          = cwfr-0109
-        kind        = policy
         version     = 0.1.0
         severity    = high
         scope       = event_window

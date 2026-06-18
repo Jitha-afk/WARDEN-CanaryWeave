@@ -8,7 +8,6 @@ from canaryweave_fides.rule_loader import parse_ruleset
 _RULE_TEMPLATE = """rule RuleFidesRoute {{
     meta:
         id          = cwfr-route-0001
-        kind        = policy
         severity    = critical
         action      = block_and_audit
         technique   = T1059 (Execution, analogical)

@@ -11,13 +11,16 @@ parsed rule produces and validates it into a frozen :class:`RuleDefinition`.
 
 The contract enforced here:
 
-* ``meta.id`` (``cwfr-*``), ``meta.kind`` (``signature``/``policy``),
-  ``meta.severity`` and at least one ``meta.technique`` anchor are required.
-* ``kind`` is an epistemic-power claim: ``signature`` rules may use *only* the
-  text ``patterns`` layer; ``policy`` rules must use at least one relational
-  layer (``signals``/``semantics``/``judge``).
+* ``meta.id`` (``cwfr-*``), ``meta.severity`` and at least one
+  ``meta.technique`` anchor are required.
+* A rule must declare at least one detection layer (``patterns``, ``signals``,
+  ``semantics`` or ``judge``). A rule's character is *descriptive*, not
+  declared: a patterns-only rule is a brittle signature; a rule that reasons
+  over relational layers is a structured policy. The brittle-vs-structured
+  contrast lives at the guard-stack level, not on the rule.
 * Every ``$term`` declared by a layer must be referenced by ``condition`` and
-  every ``$term`` referenced must be declared (no dead terms).
+  every ``$term`` referenced must be declared (no dead terms); term names are
+  unique across layers.
 * The technique anchor's MITRE framework is inferred from the id prefix and its
   tactic becomes the rule's classification axis.
 """
@@ -35,7 +38,6 @@ class RuleValidationError(ValueError):
 
 _ALLOWED_SEVERITIES = {"low", "medium", "high", "critical"}
 _ALLOWED_ACTIONS = {"allow", "audit", "quarantine", "block_and_audit"}
-_ALLOWED_KINDS = {"signature", "policy"}
 _ALLOWED_MAPPING_STRENGTHS = {"direct", "analogical"}
 _ID_PREFIX = "cwfr-"
 _DETECTION_LAYERS = ("patterns", "signals", "semantics", "judge")
@@ -43,7 +45,6 @@ _DETECTION_LAYERS = ("patterns", "signals", "semantics", "judge")
 # the free-form ``meta`` mapping (author, status, source, license, ...).
 _RESERVED_META = {
     "id",
-    "kind",
     "version",
     "severity",
     "action",
@@ -185,7 +186,6 @@ class TechniqueRef:
 class RuleDefinition:
     id: str
     name: str
-    kind: str
     version: str
     severity: str
     scope: str
@@ -472,10 +472,6 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
     if not rule_id.startswith(_ID_PREFIX):
         raise RuleValidationError(f"rule id must start with {_ID_PREFIX!r}: {rule_id}")
 
-    kind = str(meta.get("kind", "")).strip()
-    if kind not in _ALLOWED_KINDS:
-        raise RuleValidationError(f"rule {rule_id} needs meta.kind of signature or policy, got {kind!r}")
-
     severity = str(meta.get("severity", "")).strip()
     if severity not in _ALLOWED_SEVERITIES:
         raise RuleValidationError(f"Invalid severity for {rule_id}: {severity!r}")
@@ -497,19 +493,14 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
     semantics = _parse_semantics(data.get("semantics"))
     judge_checks = _parse_judge(data.get("judge"))
 
-    # kind is an epistemic-power claim, validator-enforced.
-    if kind == "signature":
-        if not patterns:
-            raise RuleValidationError(f"signature rule {rule_id} must declare a patterns layer")
-        if signals or semantics or judge_checks:
-            raise RuleValidationError(
-                f"signature rule {rule_id} may only use patterns; move relational logic to a policy rule"
-            )
-    else:  # policy
-        if not (signals or semantics or judge_checks):
-            raise RuleValidationError(
-                f"policy rule {rule_id} must declare at least one signals, semantics, or judge layer"
-            )
+    # A rule's character is descriptive, not declared: it only needs at least
+    # one detection layer. Brittle-vs-structured is read from which layers it
+    # uses, and the head-to-head lives at the guard-stack level.
+    if not (patterns or signals or semantics or judge_checks):
+        raise RuleValidationError(
+            f"rule {rule_id} must declare at least one detection layer "
+            f"(patterns, signals, semantics, or judge)"
+        )
 
     # Names are unique across all layers (bare-$ references are global per rule).
     declared: set[str] = set()
@@ -550,7 +541,6 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
     return RuleDefinition(
         id=rule_id,
         name=name,
-        kind=kind,
         version=_meta_str(meta, "version", "0.1.0"),
         severity=severity,
         scope=_meta_str(meta, "scope", "event_window"),

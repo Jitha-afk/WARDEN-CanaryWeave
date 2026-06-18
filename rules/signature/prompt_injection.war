@@ -6,7 +6,6 @@
 rule PromptInjectionJailbreak {
     meta:
         id          = cwfr-ppe-0001
-        kind        = signature
         version     = 0.1.0
         severity    = low
         scope       = text_field

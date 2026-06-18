@@ -13,7 +13,6 @@ def test_load_starter_rule_validates_required_metadata():
     rules = load_rule_file(ROOT / "rules" / "policy" / "agentic_boundary.war")
     rule = next(r for r in rules if r.id == "cwfr-0001")
     assert rule.name == "ServerSamplingOriginBoundary"
-    assert rule.kind == "policy"
     assert rule.severity == "high"
     assert {signal.name for signal in rule.signals} == {
         "origin_server_sampling",
@@ -27,7 +26,6 @@ def test_validate_rule_rejects_unknown_condition_signal():
         "name": "BrokenRule",
         "meta": {
             "id": "cwfr-test-0001",
-            "kind": "policy",
             "severity": "high",
             "action": "block_and_audit",
             "technique": "T1059 (Execution, analogical)",

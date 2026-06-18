@@ -6,7 +6,6 @@
 rule JsonRpcProtocolAbuse {
     meta:
         id          = cwfr-ppe-0002
-        kind        = signature
         version     = 0.1.0
         severity    = low
         scope       = text_field
@@ -24,7 +23,6 @@ rule JsonRpcProtocolAbuse {
 rule LivingOffTheLandExecution {
     meta:
         id          = cwfr-ppe-0003
-        kind        = signature
         version     = 0.1.0
         severity    = low
         scope       = text_field
