@@ -320,9 +320,11 @@ class ProviderBackedFidesJudge:
     ) -> FidesJudgeResult:
         self.calls += 1
         context: dict[str, Any] = {"case_id": facts.case_id}
-        if rule_fides_checks:
-            context["rule_fides_checks"] = [dict(check) for check in rule_fides_checks]
-        prompt = build_fides_judge_prompt(facts, warden_miss_context=context)
+        prompt = build_fides_judge_prompt(
+            facts,
+            rule_questions=rule_fides_checks,
+            warden_miss_context=context,
+        )
         response = self.provider.judge(prompt, case_id=facts.case_id, request_id=f"fides-{self.calls}")
         parsed = parse_fides_judge_response(response.text)
         return FidesJudgeResult(
