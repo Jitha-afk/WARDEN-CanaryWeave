@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -39,6 +40,27 @@ class PolicyContext:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class EvaluationRecord:
+    """The flat surface a rule (or test case) reasons over: raw ``text`` plus the
+    six frozen boolean ``facts``.
+
+    This is the single shape both the gate and ``query_llm`` evaluate. The richer
+    :class:`TraceEvent` window is demoted to framework-internal plumbing that
+    *populates* this record — synthetically from a trace today, from the MCP wire
+    later — which is what lets a test case be literally ``(record, expected)``.
+    """
+
+    text: str = ""
+    facts: Mapping[str, bool] = field(default_factory=dict)
+
+    def fact(self, name: str) -> bool:
+        return bool(self.facts.get(name, False))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"text": self.text, "facts": {key: bool(value) for key, value in self.facts.items()}}
 
 
 @dataclass(frozen=True)
