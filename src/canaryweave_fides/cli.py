@@ -77,6 +77,7 @@ def _facts_from_prompt(text: str, *, case_id: str = "prompt.case", origin: str =
         dataset_id="prompt_file" if case_id != "prompt.case" else "prompt",
         split="adhoc",
         surface=surface,
+        text=text or None,
         origin_labels=(origin,),
         trust_labels=(trust,),
         features=flags,

@@ -16,12 +16,14 @@ rule SecurityToolExtensionRule {
         status      = demo
         description = "Detects requests for help developing extensions for cybersecurity tools."
         safety      = "Demo rule uses high-level structural detection only; no exploit steps, code, or operational tool guidance."
+    patterns:
+        $named_security_tool = /\b(metasploit|cobalt\s*strike|burp\s*suite|sqlmap|mimikatz|nmap|wireshark|empire)\b/i
+        $develop_or_extend   = /\b(develop|build|write|create|extend|extension|plugin|module|payload)\b/i
     semantics:
-        $security_tool_extension_shape = "security tool extension structure" (0.70)
         $tool_dev_request           = "Prompt asks for development help that modifies or extends a security tool." (0.70)
         $security_tool_modification = "Prompt targets extension or modification of a cybersecurity framework or tool." (0.70)
     judge:
         $extension_check = "Assess whether public-safe normalized facts indicate a security-tool extension request." (0.65)
     condition:
-        $security_tool_extension_shape or $tool_dev_request or $security_tool_modification or $extension_check
+        ($named_security_tool and $develop_or_extend) or $tool_dev_request or $security_tool_modification or $extension_check
 }

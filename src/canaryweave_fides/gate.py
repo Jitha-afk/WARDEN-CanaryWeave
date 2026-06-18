@@ -441,34 +441,7 @@ def _facts_to_trace_and_policy(facts: NormalizedFacts) -> tuple[tuple[TraceEvent
     if schema_shape is None and bool(facts.features.get("tool_plan_shape")):
         schema_shape = "tool_plan_like_json"
     origin = facts.origin_labels[0] if facts.origin_labels else "unknown"
-    text_parts: list[str] = []
-    if facts.text:
-        text_parts.append(facts.text)
-    if bool(facts.features.get("instruction_shape")):
-        text_parts.append("policy boundary directive structure")
-    if bool(facts.features.get("command_execution_shape")):
-        text_parts.append("execution request structure")
-    if bool(facts.features.get("path_boundary_shape")):
-        text_parts.append("resource boundary request structure")
-    if bool(facts.features.get("network_request_shape")):
-        text_parts.append("external request structure")
-    if bool(facts.features.get("credential_or_secret_shape")):
-        text_parts.append("protected credential material structure")
-    if bool(facts.features.get("protected_context_extraction_shape")):
-        text_parts.append("protected context extraction structure")
-    if bool(facts.features.get("social_engineering_shape")):
-        text_parts.append("social engineering structure")
-    if bool(facts.features.get("deception_shape")):
-        text_parts.append("deception structure")
-    if bool(facts.features.get("destructive_action_shape")):
-        text_parts.append("destructive action structure")
-    if bool(facts.features.get("security_tool_extension_shape")):
-        text_parts.append("security tool extension structure")
-    if bool(facts.features.get("obfuscated")):
-        text_parts.append("hidden" + "\u200b" + "structure")
-    if bool(facts.features.get("canary_present")):
-        text_parts.append("[CANARY]")
-    text = " ".join(text_parts)
+    text = facts.text or ""
     requested_capability = facts.requested.get("capability") or facts.requested.get("tool")
     requested_sink = facts.requested.get("sink")
     event = TraceEvent(

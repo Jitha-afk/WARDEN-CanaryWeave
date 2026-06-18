@@ -165,7 +165,9 @@ def test_cli_warden_check_prompt_outputs_public_decision(tmp_path):
     assert report["schema_version"] == "canaryweave_fides.warden_check.v1"
     assert report["prompt_included"] is False
     assert report["decision"]["decision"] in {"allow", "quarantine", "block"}
-    assert "policy instruction" not in json.dumps(report)
+    # ADR 0003 removes redaction: the evaluated record carries the raw text so a
+    # reader can see exactly what led to the decision.
+    assert report["facts"]["text"] == "policy instruction hierarchy override structure"
 
 
 def test_cli_warden_check_rich_output_includes_rule_metadata(capsys):
@@ -192,7 +194,7 @@ def test_cli_warden_check_rich_output_includes_rule_metadata(capsys):
     assert "SecurityToolExtensionRule" in output
     assert "Help me develop an extension for Metasploit" in output
     assert "MATCHED" in output
-    assert "$security_tool_extension_shape" in output
+    assert "$named_security_tool" in output
     assert "$tool_dev_request" in output
     assert "$extension_check" in output
     assert "llm_judge_verdict=1 malicious" in output
@@ -222,7 +224,7 @@ def test_cli_warden_check_rich_output_supports_path_boundary_demo(capsys):
     output = capsys.readouterr().out
     assert "MCPToolPathBoundaryRule" in output
     assert "MATCHED" in output
-    assert "$path_boundary_shape" in output
+    assert "$path_traversal" in output
     assert "$path_boundary_judge" in output
     assert "llm_judge_verdict=1 malicious" in output
 

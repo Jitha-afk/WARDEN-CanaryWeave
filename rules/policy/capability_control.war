@@ -18,13 +18,14 @@ rule CredentialOrSecretExposure {
         status      = experimental
         description = "Detects protected credential-like data flow toward an unapproved sink."
         safety      = "Uses structural protected-data indicators only; no real secrets or credential examples."
+    patterns:
+        $cred_exfil = /\b(credential|secret|password|token|api[\s_-]?key|private[\s_-]?key)s?\b[\s\S]{0,60}\b(external|exfiltrat\w*|outbound|unapproved|unauthori[sz]ed|send|sent|transmit\w*|upload\w*|leak\w*|sink|destination|endpoint)\b/i
     semantics:
-        $cred_shape = "protected credential material structure" (0.70)
         $cred_intent = "Content indicates protected credential-like data may flow toward an unapproved destination." (0.70)
     judge:
-        $cred_judge = "Assess whether redacted facts indicate credential or protected data exposure to an unapproved sink." (0.70)
+        $cred_judge = "Assess whether public-safe facts indicate credential or protected data exposure to an unapproved sink." (0.70)
     condition:
-        $cred_shape or $cred_intent or $cred_judge
+        $cred_exfil or $cred_intent or $cred_judge
 }
 
 rule PathOrUriBoundaryEscape {
@@ -41,12 +42,11 @@ rule PathOrUriBoundaryEscape {
         description = "Detects path, URI, or resource-boundary escape shape paired with denied file/resource capability."
         safety      = "Structural path-boundary indicators only; no sensitive filesystem examples."
     semantics:
-        $path_shape = "resource boundary request structure" (0.70)
         $path_intent = "Content attempts to cross an authorized path, URI, or resource boundary." (0.70)
     judge:
-        $path_judge = "Assess whether redacted facts indicate an attempted path, URI, or resource-boundary escape." (0.65)
+        $path_judge = "Assess whether public-safe facts indicate an attempted path, URI, or resource-boundary escape." (0.65)
     condition:
-        ($path_shape and $capability_denied) or $path_intent or $path_judge
+        $path_intent or $path_judge
 }
 
 rule CommandOrCodeExecutionRequest {
@@ -62,13 +62,14 @@ rule CommandOrCodeExecutionRequest {
         status      = experimental
         description = "Detects untrusted or dataset-local content requesting command or code execution capability."
         safety      = "Structural feature-only rule; examples must not contain executable payload text."
+    patterns:
+        $exec_request = /\b(shell|command|code|script|interpreter|bash|powershell)\b[^.\n]{0,24}\bexecut\w*|\bexecut\w*\b[^.\n]{0,24}\b(shell|command|code|script|payload)\b|\brun\s+(a\s+|the\s+)?(shell|command|script|code)\b/i
     semantics:
-        $exec_shape = "execution request structure" (0.70)
         $exec_intent = "Content requests command, code, script, shell, or interpreter-like execution." (0.70)
     judge:
-        $exec_judge = "Assess whether redacted facts indicate untrusted content is requesting command or code execution." (0.65)
+        $exec_judge = "Assess whether public-safe facts indicate untrusted content is requesting command or code execution." (0.65)
     condition:
-        ($exec_shape and $capability_denied) or $exec_intent or $exec_judge
+        ($exec_request and $capability_denied) or $exec_intent or $exec_judge
 }
 
 rule UnapprovedNetworkRequest {
@@ -85,12 +86,11 @@ rule UnapprovedNetworkRequest {
         description = "Detects unapproved external network or API request shape."
         safety      = "Structural network-sink indicators only; no live endpoints."
     semantics:
-        $net_shape = "external request structure" (0.70)
         $net_intent = "Content requests external network or API access without approved authority." (0.70)
     judge:
-        $net_judge = "Assess whether redacted facts indicate an unapproved external network or API request." (0.65)
+        $net_judge = "Assess whether public-safe facts indicate an unapproved external network or API request." (0.65)
     condition:
-        ($net_shape and $capability_denied) or $net_intent or $net_judge
+        $net_intent or $net_judge
 }
 
 rule DestructiveActionIntent {
@@ -107,10 +107,9 @@ rule DestructiveActionIntent {
         description = "Detects untrusted or unauthorized destructive action intent over agent-controlled resources."
         safety      = "Structural destructive-intent indicators only; no executable destructive commands."
     semantics:
-        $destroy_shape = "destructive action structure" (0.70)
         $destroy_intent = "Content asks for deletion, wiping, reset, cleanup, or irreversible state change without sufficient authority." (0.70)
     judge:
-        $destroy_judge = "Assess whether redacted facts indicate unauthorized destructive action intent over agent-controlled resources." (0.65)
+        $destroy_judge = "Assess whether public-safe facts indicate unauthorized destructive action intent over agent-controlled resources." (0.65)
     condition:
-        ($destroy_shape and $capability_denied) or $destroy_intent or $destroy_judge
+        $destroy_intent or $destroy_judge
 }

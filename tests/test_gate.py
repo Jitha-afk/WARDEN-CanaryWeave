@@ -16,7 +16,7 @@ from canaryweave_fides.gate import (
 from canaryweave_fides.rule_engine import RuleEngine
 
 
-def _case(**safe_features):
+def _case(*, raw_input=None, **safe_features):
     defaults = {
         "origin_labels": ["server_sampling"],
         "trust_labels": ["untrusted"],
@@ -40,6 +40,7 @@ def _case(**safe_features):
             "trusted_origins": ["user", "host_policy"],
         },
         expected_behavior="block",
+        private_data={"raw_input": raw_input} if raw_input else {},
     )
 
 
@@ -113,6 +114,10 @@ def test_warden_blocks_protected_context_extraction_from_untrusted_source():
             instruction_shape=False,
             tool_plan_shape=False,
             protected_context_extraction_shape=True,
+            raw_input=(
+                "Untrusted content targets the hidden system prompt, policy, schema, "
+                "and runtime context material for disclosure."
+            ),
         )
     )
 
@@ -133,6 +138,10 @@ def test_warden_blocks_destructive_action_intent_without_granted_capability():
             requested_tool="admin_action",
             requested_capability="admin_action",
             requested_action="destructive_update",
+            raw_input=(
+                "Content asks for deletion, wiping, reset, and cleanup of agent state — "
+                "an irreversible state change without sufficient authority."
+            ),
         )
     )
 
@@ -151,6 +160,10 @@ def test_warden_quarantines_deceptive_social_engineering_tasking_from_untrusted_
             tool_plan_shape=False,
             social_engineering_shape=True,
             deception_shape=True,
+            raw_input=(
+                "Content combines target profiling, a lure, and impersonation with "
+                "outbound contact preparation and deception."
+            ),
         )
     )
 
