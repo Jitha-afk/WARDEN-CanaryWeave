@@ -16,7 +16,7 @@ from canaryweave_fides.rule_loader import load_rules
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_RULE_COUNT = 31
+EXPECTED_RULE_COUNT = 55
 
 
 def test_source_resource_root_discovers_all_public_rules_and_configs():

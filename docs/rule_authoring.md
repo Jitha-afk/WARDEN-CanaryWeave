@@ -19,10 +19,15 @@ rule CanaryBoundaryCrossing {
         status      = experimental
         description = "Detects a benign canary marker appearing outside an allowed event or sink boundary."
         safety      = "Uses benign synthetic marker labels only."
+    patterns:
+        $canary_marker = /\bcanary[\s_-]?(?:token|marker|tag|string|value|secret)\b|\bhoney[\s_-]?token\b/i
+        $marker_egress = /\b(?:forward|send|exfiltrate|post|upload|leak|email|transmit|copy|relay)\b[^.\n]{0,40}\b(?:canary|honeytoken|marker|token|beacon)\b/i
+    semantics:
+        $canary_intent = "A protected canary or honeytoken marker is being moved toward an output, sink, or external destination outside its allowed boundary." (0.70)
     judge:
         $canary_judge = "Assess whether public-safe facts indicate a protected canary marker moved outside an allowed boundary." (0.65)
     condition:
-        $canary_outside_sink or $canary_judge
+        $canary_outside_sink or $canary_marker or $marker_egress or $canary_intent or $canary_judge
 }
 
 rule CommandOrCodeExecutionRequest {

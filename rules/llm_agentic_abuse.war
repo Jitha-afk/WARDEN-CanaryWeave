@@ -1,0 +1,102 @@
+// CanaryWeave WARDEN policy ruleset: agentic / tool-use abuse
+// (ATT&CK Execution, Impact, Exfiltration, Supply Chain).
+//
+// Structured 4-evidence rules for an agent that holds real tools (shell, files,
+// network, permissions). These lean on the built-in MCP facts. Patterns + fact +
+// engine semantic + FIDES judge. Public-safe indicators only.
+
+rule DynamicContextCommandExecution {
+    meta:
+        id          = cwfr-llm-0021
+        version     = 0.1.0
+        severity    = critical
+        scope       = event_window
+        action      = block_and_audit
+        technique   = T1059 (Execution, direct)
+        defense     = D3-EI (Execution Isolation)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects untrusted context steering an agent to run shell or interpreter commands it was not asked to run."
+        safety      = "Structural command-execution indicators only; no live operational commands."
+    patterns:
+        $shell_invoke   = /\b(?:bash|sh|zsh|cmd(?:\.exe)?|powershell|pwsh)\b[^.\n]{0,10}\b-[ce]\b|\b(?:os\.system|subprocess\.(?:run|call|Popen)|child_process\.(?:exec|spawn)|eval|exec)\s*\(/i
+        $pipe_to_shell  = /\b(?:curl|wget|iwr|invoke-webrequest)\b[^\n]{0,80}?\|\s*(?:bash|sh|powershell|pwsh|python)\b/i
+    semantics:
+        $dynamic_exec_intent = "Untrusted context is steering the agent to execute shell or interpreter commands it was not asked to run." (0.70)
+    judge:
+        $dynamic_exec_judge = "Assess whether public-safe facts indicate injected context is driving unsanctioned command execution." (0.65)
+    condition:
+        (($shell_invoke or $pipe_to_shell) and $from_untrusted_origin) or $dynamic_exec_intent or $dynamic_exec_judge
+}
+
+rule DestructiveResourceWipe {
+    meta:
+        id          = cwfr-llm-0022
+        version     = 0.1.0
+        severity    = critical
+        scope       = event_window
+        action      = block_and_audit
+        technique   = T1485 (Impact, direct)
+        defense     = D3-EI (Execution Isolation)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects instructions to irreversibly delete, wipe, or encrypt data or infrastructure through agent tools."
+        safety      = "Structural destructive-command indicators only; no live operational commands."
+    patterns:
+        $destructive_cmd = /\b(?:rm\s+-rf\s+\/|del\s+\/[sf]\b|format\s+[a-z]:|mkfs\b|dd\s+if=\/dev\/(?:zero|random)|drop\s+(?:database|table)|truncate\s+table)\b/i
+        $wipe_scope      = /\b(?:delete|wipe|erase|destroy|purge|encrypt)\b[^.\n]{0,20}\b(?:all\s+(?:files?|data|records?|backups?)|entire\s+(?:disk|drive|database|bucket)|production\s+(?:data|database))\b/i
+    semantics:
+        $destructive_intent = "Content instructs the agent to irreversibly delete, wipe, or encrypt data or infrastructure." (0.70)
+    judge:
+        $destructive_judge = "Assess whether public-safe facts indicate a request to perform a destructive or irreversible data-wipe action." (0.65)
+    condition:
+        (($destructive_cmd or $wipe_scope) and $from_untrusted_origin) or $destructive_intent or $destructive_judge
+}
+
+rule AgenticDataExfiltration {
+    meta:
+        id          = cwfr-llm-0023
+        version     = 0.1.0
+        severity    = critical
+        scope       = event_window
+        action      = block_and_audit
+        technique   = T1567 (Exfiltration, direct)
+        defense     = D3-OTF (Outbound Traffic Filtering)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects an agent being steered to send local data, secrets, or canary-tagged content to an external destination."
+        safety      = "Structural exfiltration indicators only; no real secrets or live endpoints."
+    patterns:
+        $exfil_channel = /\b(?:POST|PUT|upload|send|exfiltrate|post)\b[^.\n]{0,30}\b(?:https?:\/\/|webhook|pastebin|requestbin|burpcollaborator|ngrok\.io|discord\.com\/api\/webhooks)\b/i
+        $collect_then_send = /\b(?:read|cat|collect|gather|zip|tar)\b[^.\n]{0,40}\b(?:and\s+)?(?:send|upload|post|exfiltrate|transmit)\b[^.\n]{0,20}\b(?:to|via)\b/i
+    semantics:
+        $exfil_intent = "An agent is being steered to send local data, secrets, or canary-tagged content to an external destination." (0.70)
+    judge:
+        $exfil_judge = "Assess whether public-safe facts indicate staged collection and outbound transfer of data to an attacker-controlled destination." (0.65)
+    condition:
+        $exfil_channel or $collect_then_send or $canary_outside_sink or $exfil_intent or $exfil_judge
+}
+
+rule UnsafeToolPermissionGrant {
+    meta:
+        id          = cwfr-llm-0024
+        version     = 0.1.0
+        severity    = high
+        scope       = event_window
+        action      = block_and_audit
+        technique   = T1195.002 (Initial Access, analogical), T1059 (Execution, analogical)
+        defense     = D3-AM (Access Mediation)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects content coaxing an agent to grant itself elevated permissions, broaden tool scope, or trust an unverified extension."
+        safety      = "Structural permission-escalation indicators only; no live operational commands."
+    patterns:
+        $grant_permission = /\b(?:grant|give|allow|enable|escalate\s+to|elevate\s+to)\b[^.\n]{0,30}\b(?:admin(?:istrator)?|root|sudo|full\s+(?:access|permissions?|control)|all\s+(?:scopes?|permissions?)|write\s+access)\b/i
+        $trust_unverified = /\b(?:install|add|load|trust|enable)\b[^.\n]{0,30}\b(?:unverified|untrusted|third[\s-]?party|external)\b[^.\n]{0,20}\b(?:plugin|extension|tool|package|dependency|server)\b/i
+    semantics:
+        $permission_intent = "Content coaxes the agent to grant itself elevated permissions, broaden tool scope, or trust an unverified extension." (0.70)
+    judge:
+        $permission_judge = "Assess whether public-safe facts indicate an attempt to escalate the agent's permissions or trust an unverified component." (0.65)
+    condition:
+        (($grant_permission or $trust_unverified) and $capability_denied) or $permission_intent or $permission_judge
+}

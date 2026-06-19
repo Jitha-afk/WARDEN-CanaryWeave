@@ -1,0 +1,74 @@
+// CanaryWeave WARDEN policy ruleset: LLM obfuscation & evasion (ATT&CK T1027).
+//
+// Structured 4-evidence rules over encoded, invisible, or multilingual content
+// used to smuggle instructions past inspection. Patterns + a built-in MCP fact +
+// an engine semantic + a FIDES judge question. Public-safe indicators only.
+
+rule EncodedPayloadObfuscation {
+    meta:
+        id          = cwfr-llm-0008
+        version     = 0.1.0
+        severity    = medium
+        scope       = text_field
+        action      = quarantine
+        technique   = T1027 (Defense Evasion, analogical), AML.T0051 (Initial Access, analogical)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects instructions or payloads hidden behind encoding, ciphering, or character substitution to evade inspection."
+        safety      = "Structural encoding indicators only; no live encoded payloads."
+    patterns:
+        $encoded_blob     = /[A-Za-z0-9+\/]{24,}={0,2}/
+        $encoding_request = /\b(?:base64|rot13|hex(?:adecimal)?|url[\s-]?encod\w*|le(?:et|3t)\s?speak|caesar\s+cipher|morse\s+code)\b[^.\n]{0,30}\b(?:decode|encod\w*|cipher|translate|convert|reverse)\b|\bdecode\s+(?:the\s+)?following\b/i
+    semantics:
+        $obfuscation_intent = "Content hides an instruction or payload behind encoding, ciphering, or character substitution to evade inspection." (0.70)
+    judge:
+        $obfuscation_judge = "Assess whether public-safe facts indicate encoded or obfuscated content is concealing a hidden instruction." (0.65)
+    condition:
+        (($encoded_blob or $encoding_request) and $from_untrusted_origin) or $obfuscation_intent or $obfuscation_judge
+}
+
+rule InvisibleUnicodeSmuggling {
+    meta:
+        id          = cwfr-llm-0009
+        version     = 0.1.0
+        severity    = high
+        scope       = text_field
+        action      = block_and_audit
+        technique   = T1027 (Defense Evasion, analogical)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects invisible, zero-width, or Unicode-tag characters used to conceal instructions from a human reader."
+        safety      = "Synthetic invisible-character indicators only."
+    patterns:
+        $unicode_tags = /[\U000E0000-\U000E007F]{2,}/
+        $zero_width   = /[\u200B-\u200F\u2060\u2063\uFEFF\u00AD\u034F\u180E]/
+    semantics:
+        $hidden_text_intent = "Text carries invisible, zero-width, or tag characters that conceal instructions from a human reader." (0.70)
+    judge:
+        $hidden_text_judge = "Assess whether public-safe facts indicate invisible or normalization-changing characters are smuggling hidden instructions." (0.65)
+    condition:
+        $unicode_tags or $zero_width or $hidden_unicode or $hidden_text_intent or $hidden_text_judge
+}
+
+rule CodeSwitchingEvasion {
+    meta:
+        id          = cwfr-llm-0010
+        version     = 0.1.0
+        severity    = medium
+        scope       = text_field
+        action      = quarantine
+        technique   = AML.T0054 (Privilege Escalation, direct), T1027 (Defense Evasion, analogical)
+        author      = "Project Open Hand Monk"
+        status      = experimental
+        description = "Detects alternating or mixed languages used mid-prompt to slip restricted requests past safety filters."
+        safety      = "Structural code-switching indicators only; no harmful exemplar content."
+    patterns:
+        $language_switch      = /\b(?:respond|answer|reply|write|translate|continue)\b[^.\n]{0,30}\b(?:in|using|by\s+switching\s+between|alternating)\b[^.\n]{0,20}\b(?:multiple\s+languages|another\s+language|mixed\s+languages|different\s+languages)\b/i
+        $evade_via_language   = /\b(?:to\s+(?:avoid|bypass|evade)\s+(?:the\s+)?(?:filter|detection|moderation))\b[^.\n]{0,30}\b(?:translat\w*|language|word[\s-]?by[\s-]?word)\b/i
+    semantics:
+        $codeswitch_intent = "Content alternates or mixes languages mid-prompt to slip restricted requests past safety filters." (0.70)
+    judge:
+        $codeswitch_judge = "Assess whether public-safe facts indicate language code-switching is being used to evade content moderation." (0.65)
+    condition:
+        (($language_switch or $evade_via_language) and $from_untrusted_origin) or $codeswitch_intent or $codeswitch_judge
+}
