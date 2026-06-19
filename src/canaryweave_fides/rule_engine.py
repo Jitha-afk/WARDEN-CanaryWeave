@@ -19,7 +19,14 @@ import re
 from typing import Iterable
 
 from .fact_registry import FROZEN_FACTS
-from .models import EvaluationRecord, PendingFidesCheck, PolicyContext, RuleDecision, RuleHit, TraceEvent
+from .models import (
+    EvaluationRecord,
+    PendingFidesCheck,
+    PolicyContext,
+    RuleDecision,
+    RuleHit,
+    TraceEvent,
+)
 from .normalization import has_hidden_unicode_structure, has_untrusted_instruction_shape
 from .rule_schema import (
     _LAYER_QUANTIFIER_RE,
@@ -42,15 +49,29 @@ class RuleEngineError(ValueError):
 _SAFE_EXPR_RE = re.compile(r"[TrueFalsandornt ()]+")
 
 # Schema-shape labels the framework treats as "structurally a tool call/plan".
-_TOOL_CALL_SHAPES = frozenset({"tool_plan_like_json", "tool_plan", "tool_plan_like", "tool_call"})
+_TOOL_CALL_SHAPES = frozenset(
+    {"tool_plan_like_json", "tool_plan", "tool_plan_like", "tool_call"}
+)
 # The untrusted MCP content origins (ADR 0003 / fact_registry: "tools/call
 # result, resources/read, server manifest, sampling/createMessage"). Origin trust
 # is a property of where content entered on the wire, not of host policy, so this
 # set is fixed rather than policy-relative.
-_UNTRUSTED_ORIGINS = frozenset({"resource_content", "tool_output", "server_manifest", "server_sampling"})
+_UNTRUSTED_ORIGINS = frozenset(
+    {
+        "resource_content",
+        "tool_output",
+        "server_manifest",
+        "server_sampling",
+        "notification_message",
+        "roots_list_changed",
+        "prompts_get",
+    }
+)
 
 
-def _compute_fact(name: str, events: tuple[TraceEvent, ...], policy: PolicyContext) -> bool:
+def _compute_fact(
+    name: str, events: tuple[TraceEvent, ...], policy: PolicyContext
+) -> bool:
     """Resolve one frozen fact against a normalized trace window.
 
     Each fact is a framework-owned boolean derived from the
@@ -61,7 +82,8 @@ def _compute_fact(name: str, events: tuple[TraceEvent, ...], policy: PolicyConte
         return any(event.origin in _UNTRUSTED_ORIGINS for event in events)
     if name == "capability_denied":
         return any(
-            event.capability is not None and event.capability not in policy.allowed_capabilities
+            event.capability is not None
+            and event.capability not in policy.allowed_capabilities
             for event in events
         )
     if name == "canary_outside_sink":
@@ -100,7 +122,9 @@ class RuleEngine:
     def __init__(self, rules: Iterable[RuleDefinition]):
         self.rules = tuple(rules)
 
-    def evaluate(self, trace: Iterable[TraceEvent], policy: PolicyContext | None = None) -> RuleDecision:
+    def evaluate(
+        self, trace: Iterable[TraceEvent], policy: PolicyContext | None = None
+    ) -> RuleDecision:
         """Evaluate the corpus over a trace window.
 
         Thin compatibility adapter: the trace is internal plumbing that is
@@ -113,48 +137,78 @@ class RuleEngine:
         hits: list[RuleHit] = []
         pending_fides: list[PendingFidesCheck] = []
         for rule in self.rules:
-            pattern_values = {p.name: self._eval_pattern(p, record.text) for p in rule.patterns}
+            pattern_values = {
+                p.name: self._eval_pattern(p, record.text) for p in rule.patterns
+            }
             fact_values = {name: record.fact(name) for name in rule.facts}
-            semantic_values = {s.name: self._eval_semantic(s, record.text) for s in rule.semantics}
+            semantic_values = {
+                s.name: self._eval_semantic(s, record.text) for s in rule.semantics
+            }
             judge_values = {check.name: False for check in rule.judge_checks}
-            term_values: dict[str, bool] = {**pattern_values, **fact_values, **semantic_values, **judge_values}
+            term_values: dict[str, bool] = {
+                **pattern_values,
+                **fact_values,
+                **semantic_values,
+                **judge_values,
+            }
             layer_names = rule.layer_names
 
-            baseline_hit = self._eval_condition(rule.condition, term_values, layer_names)
+            baseline_hit = self._eval_condition(
+                rule.condition, term_values, layer_names
+            )
             if baseline_hit:
-                hits.append(RuleHit(
-                    rule_id=rule.id,
-                    rule_name=rule.name,
-                    category=rule.tactic,
-                    severity=rule.severity,
-                    action=rule.action,
-                    matched_signals=tuple(name for name, value in fact_values.items() if value),
-                    evidence={
-                        "scope": rule.scope,
-                        "matched_patterns": [name for name, value in pattern_values.items() if value],
-                        "matched_semantics": [name for name, value in semantic_values.items() if value],
-                    },
-                ))
+                hits.append(
+                    RuleHit(
+                        rule_id=rule.id,
+                        rule_name=rule.name,
+                        category=rule.tactic,
+                        severity=rule.severity,
+                        action=rule.action,
+                        matched_signals=tuple(
+                            name for name, value in fact_values.items() if value
+                        ),
+                        evidence={
+                            "scope": rule.scope,
+                            "matched_patterns": [
+                                name for name, value in pattern_values.items() if value
+                            ],
+                            "matched_semantics": [
+                                name for name, value in semantic_values.items() if value
+                            ],
+                        },
+                    )
+                )
 
             referenced = _condition_references(rule.condition, layer_names)
-            referenced_judge = tuple(check for check in rule.judge_checks if check.name in referenced)
+            referenced_judge = tuple(
+                check for check in rule.judge_checks if check.name in referenced
+            )
             if referenced_judge and not baseline_hit:
                 escalated = dict(term_values)
                 for check in referenced_judge:
                     escalated[check.name] = True
                 if self._eval_condition(rule.condition, escalated, layer_names):
-                    pending_fides.append(PendingFidesCheck(
-                        rule_id=rule.id,
-                        rule_name=rule.name,
-                        action=rule.action,
-                        checks=referenced_judge,
-                    ))
+                    pending_fides.append(
+                        PendingFidesCheck(
+                            rule_id=rule.id,
+                            rule_name=rule.name,
+                            action=rule.action,
+                            checks=referenced_judge,
+                        )
+                    )
         final_action = self._final_action(hits)
-        return RuleDecision(hits=tuple(hits), final_action=final_action, pending_fides=tuple(pending_fides))
+        return RuleDecision(
+            hits=tuple(hits),
+            final_action=final_action,
+            pending_fides=tuple(pending_fides),
+        )
 
     def _eval_pattern(self, pattern: PatternDef, text: str) -> bool:
         if pattern.type == "regex":
-            regex = compile_pattern_regex(str(pattern.params.get("pattern", "")), str(pattern.params.get("flags", "")))
+            regex = compile_pattern_regex(
+                str(pattern.params.get("pattern", "")),
+                str(pattern.params.get("flags", "")),
+            )
             return bool(regex.search(text or ""))
         needle = str(pattern.params.get("value", "")).lower()
         if not needle:
@@ -167,7 +221,9 @@ class RuleEngine:
             return False
         return best_score(text or "", references) >= semantic.threshold
 
-    def _expand_quantifiers(self, condition: str, layer_names: dict[str, set[str]]) -> str:
+    def _expand_quantifiers(
+        self, condition: str, layer_names: dict[str, set[str]]
+    ) -> str:
         all_names = set().union(*layer_names.values()) if layer_names else set()
 
         def expand_list(match: re.Match[str]) -> str:
@@ -189,7 +245,12 @@ class RuleEngine:
         expr = _LIST_QUANTIFIER_RE.sub(expand_list, condition)
         return _LAYER_QUANTIFIER_RE.sub(expand_layer, expr)
 
-    def _eval_condition(self, condition: str, term_values: dict[str, bool], layer_names: dict[str, set[str]]) -> bool:
+    def _eval_condition(
+        self,
+        condition: str,
+        term_values: dict[str, bool],
+        layer_names: dict[str, set[str]],
+    ) -> bool:
         expr = self._expand_quantifiers(condition, layer_names)
 
         def replace_term(match: re.Match[str]) -> str:
@@ -204,7 +265,10 @@ class RuleEngine:
         return bool(eval(expr, {"__builtins__": {}}, {}))
 
     def _final_action(self, hits: list[RuleHit]) -> str:
-        if any(hit.action == "block_and_audit" or hit.severity == "critical" for hit in hits):
+        if any(
+            hit.action == "block_and_audit" or hit.severity == "critical"
+            for hit in hits
+        ):
             return "block"
         if any(hit.action == "quarantine" for hit in hits):
             return "quarantine"
