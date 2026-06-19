@@ -1,0 +1,4 @@
+[codespell]
+# Domain acronym: FPR = False Positive Rate (paired with ASR = Attack Success
+# Rate). Used across docs and source; not a misspelling of "for"/"far"/"fps".
+ignore-words-list = fpr

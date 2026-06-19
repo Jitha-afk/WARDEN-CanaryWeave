@@ -1,14 +1,20 @@
-.. ai-python docs documentation master file, created by
-   sphinx-quickstart on Thu May  5 14:06:45 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. CanaryWeave FIDES documentation master file.
+   The narrative docs live in docs/ as Markdown; this Sphinx site renders the
+   autodoc API reference only.
 
-Welcome to ai-python docs's documentation!
-==========================================
+CanaryWeave FIDES — API reference
+=================================
+
+This Sphinx site renders the autodoc-level API reference for the
+``canaryweave_fides`` package. The narrative documentation — thesis, architecture
+(HLD/LLD/DFD), rule authoring, and evaluation guidance — is GitHub-flavored
+Markdown under ``docs/`` and is read directly on GitHub; start from
+``docs/README.md``.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: API reference:
+
    modules
 
 

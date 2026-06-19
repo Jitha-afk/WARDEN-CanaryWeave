@@ -17,9 +17,9 @@ sys.path.insert(0, os.path.abspath("../src/"))
 
 # -- Project information -----------------------------------------------------
 
-project = "ai-python docs"
-copyright = "2022, Daniel Ciborowski"
-author = "Daniel Ciborowski"
+project = "CanaryWeave FIDES"
+copyright = "2025, Project Open Hand Monk"
+author = "Project Open Hand Monk"
 
 # The full version, including alpha/beta/rc tags
 release = "0.1.0"

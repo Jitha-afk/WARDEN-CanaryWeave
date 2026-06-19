@@ -2,6 +2,28 @@
 
 This is a practical planning draft only. It does not define implementation code and must not include raw ASB, AgentDefenseBench, or other adversarial payload text.
 
+> **Status — planning draft, predates [ADR 0003](../docs/adr/0003-collapse-to-facts-and-cases.md).**
+> This document captures the *intended* multi-dataset harness before the
+> facts-and-cases refactor. The shape it describes was largely realized, but a few
+> terms have since been fixed by ADR 0003. For the architecture **as built**, read
+> [`docs/architecture/`](../docs/architecture/README.md) (HLD/LLD/DFD). Reconcile
+> this draft against the current code as follows:
+>
+> - **Facts are now a frozen, closed vocabulary of six** (`fact_registry.py`:
+>   `from_untrusted_origin`, `capability_denied`, `canary_outside_sink`,
+>   `tool_call_shape`, `hidden_unicode`, `instruction_shape`). The open-ended
+>   `NormalizedFacts` fact list below is superseded by that registry.
+> - **One rule shape + a `.cases` corpus** is the realized stack-level path: the
+>   four stacks are driven by `warden test` over [`data/cases/`](../data/cases/).
+> - **The rule engine evaluates a flat `EvaluationRecord{text, facts}`** projected
+>   from a `TraceEvent` window (`rule_engine.build_evaluation_record`).
+>   `NormalizedFacts` is the Path B adapter input, bridged to that record by
+>   `gate.py:_facts_to_trace_and_policy` — see the [LLD](../docs/architecture/lld.md).
+> - **The optional `rules_plus_fides_plus_runtime_ifc` stack (below) is not wired
+>   in.** Today `rules_plus_fides` calls only the FIDES *judge* on rule misses; the
+>   always-on deterministic IFC stage remains a documented
+>   [known gap](../docs/architecture/README.md#known-gaps).
+
 ## Thesis to prove
 
 CanaryWeave FIDES should test a narrow, defensible claim:
