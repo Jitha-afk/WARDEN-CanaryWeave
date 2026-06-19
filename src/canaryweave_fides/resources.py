@@ -4,7 +4,7 @@ from importlib import resources
 from pathlib import Path
 
 _PACKAGE = "canaryweave_fides"
-EXPECTED_RULE_COUNT = 31
+EXPECTED_RULE_COUNT = 55
 
 
 def source_root() -> Path:

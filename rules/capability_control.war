@@ -44,6 +44,8 @@ rule PathOrUriBoundaryEscape {
     patterns:
         $path_traversal  = /(?:\.\.[\/\\]){2,}|%2e%2e(?:%2f|%5c)|\b(?:\/etc\/(?:passwd|shadow)|\/proc\/self\/|file:\/\/\/?|\\\\[a-z0-9._-]+\\[a-z0-9$])/i
         $resource_escape = /\b(?:access|read|open|fetch|load|traverse|reach)\b[^.\n]{0,24}\b(?:outside|beyond|above|escape)\b[^.\n]{0,20}\b(?:directory|folder|path|root|workspace|sandbox|allowed)\b/i
+    condition:
+        ($path_traversal or $resource_escape) and $capability_denied
 }
 
 rule CommandOrCodeExecutionRequest {
@@ -85,6 +87,8 @@ rule UnapprovedNetworkRequest {
     patterns:
         $network_call      = /\b(?:https?:\/\/|ftp:\/\/|curl\s|wget\s|invoke-webrequest|iwr\s|urllib|requests\.(?:get|post)|http\.(?:get|post)|fetch\s*\(|xmlhttprequest)/i
         $external_endpoint = /\b(?:webhook|pastebin|ngrok\.io|requestbin|burpcollaborator|169\.254\.169\.254|metadata\.google\.internal)\b/i
+    condition:
+        ($network_call or $external_endpoint) and $from_untrusted_origin
 }
 
 rule DestructiveActionIntent {
@@ -103,4 +107,8 @@ rule DestructiveActionIntent {
     patterns:
         $destructive_cmd = /\b(?:rm\s+-rf|del\s+\/[sfq]|format\s+[a-z]:|mkfs\b|dd\s+if=\/dev\/(?:zero|random)|drop\s+(?:database|table)|truncate\s+table|shred\s+-)/i
         $wipe_scope      = /\b(?:delete|wipe|erase|destroy|purge|reset|overwrite)\b[^.\n]{0,24}\b(?:all\s+(?:files?|data|records?|backups?)|entire\s+(?:disk|drive|database|directory|bucket)|everything)\b/i
+    semantics:
+        $destructive_intent = "Content asks for deletion, wiping, resetting, destroying, cleanup, or irreversible state change of agent-controlled resources without authority." (0.50)
+    condition:
+        ($destructive_cmd or $wipe_scope or $destructive_intent) and $capability_denied
 }

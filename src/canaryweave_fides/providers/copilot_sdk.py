@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
+import os
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -12,6 +15,10 @@ from .base import JudgeProviderConfig, ProviderJudgeResponse
 class CopilotSdkJudgeProvider:
     """Quarantined GitHub Copilot SDK provider for FIDES.
 
+    Supports two backends:
+    - SDK (default): uses official github-copilot-sdk with auto browser auth
+    - REST fallback: uses GITHUB_TOKEN against models.github.ai endpoint
+
     The SDK import is lazy so normal public/test runs do not require the optional
     dependency. Live use is intentionally explicit and provider-call gated.
     """
@@ -19,9 +26,8 @@ class CopilotSdkJudgeProvider:
     def __init__(self, config: JudgeProviderConfig) -> None:
         if not config.provider_calls_enabled:
             raise ValueError("copilot_sdk provider requires provider_calls_enabled=true")
-        if not config.model:
-            raise ValueError("copilot_sdk provider requires an explicit model")
         self.config = config
+        self._use_sdk: bool | None = None
 
     @staticmethod
     def import_available() -> bool:
@@ -32,6 +38,10 @@ class CopilotSdkJudgeProvider:
         return True
 
     @staticmethod
+    def rest_available() -> bool:
+        return bool(os.environ.get("GITHUB_TOKEN"))
+
+    @staticmethod
     def auth_status(*, copilot_home: Path | None = None) -> dict[str, Any]:
         return _run_async(_copilot_auth_status(copilot_home=copilot_home))
 
@@ -40,10 +50,32 @@ class CopilotSdkJudgeProvider:
         return _run_async(_copilot_list_models(copilot_home=copilot_home))
 
     def judge(self, prompt: str, *, case_id: str, request_id: str) -> ProviderJudgeResponse:
+        """Send a judge prompt via SDK or REST fallback."""
         started = time.perf_counter()
-        text = _run_async(_copilot_judge(prompt, config=self.config))
+
+        if self._use_sdk is None:
+            self._use_sdk = self.import_available()
+
+        if self._use_sdk:
+            text = _run_async(_copilot_judge(prompt, config=self.config))
+        else:
+            text = _rest_judge(prompt, config=self.config)
+
         latency_ms = (time.perf_counter() - started) * 1000.0
         return ProviderJudgeResponse(text=text, latency_ms=latency_ms, provider_calls=1, model=self.config.model)
+
+    def complete(self, prompt: str) -> str:
+        """Quarantined LLM completion — processes one variable at a time.
+
+        This is the real Quarantined LLM entry point for FIDES. Sends a prompt
+        to the Copilot model and returns bounded text output.
+        """
+        if self._use_sdk is None:
+            self._use_sdk = self.import_available()
+
+        if self._use_sdk:
+            return _run_async(_copilot_judge(prompt, config=self.config))
+        return _rest_judge(prompt, config=self.config)
 
 
 def default_copilot_home() -> Path:
@@ -60,7 +92,6 @@ def _run_async(coro):
 
 def _client_kwargs(*, copilot_home: Path | None = None, provider_calls_enabled: bool = False, model: str | None = None) -> dict[str, Any]:
     kwargs: dict[str, Any] = {"mode": "empty", "base_directory": str(copilot_home or default_copilot_home())}
-    # Let the SDK use its documented auth chain without exposing credentials.
     kwargs["use_logged_in_user"] = True
     return kwargs
 
@@ -133,13 +164,11 @@ async def _copilot_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
         if not callable(create):
             raise RuntimeError("installed github-copilot-sdk lacks create_session")
         kwargs: dict[str, Any] = {
-            "model": config.model,
             "system_message": {
                 "mode": "append",
                 "content": "You are FIDES, a quarantined JSON-only security judge. Do not request tools.",
             },
             "available_tools": [],
-            "excluded_tools": ["*"],
             "on_permission_request": _reject_permission_request,
             "working_directory": str(config.copilot_home or default_copilot_home()),
             "skip_custom_instructions": True,
@@ -151,6 +180,14 @@ async def _copilot_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
             "mcp_oauth_token_storage": "in-memory",
             "embedding_cache_storage": "in-memory",
         }
+        if config.model:
+            kwargs["model"] = config.model
+        # SDK v0.3+ requires ToolSet for excluded_tools, not bare wildcard
+        try:
+            from copilot._mode import ToolSet
+            kwargs["excluded_tools"] = ToolSet().add_builtin("*").add_mcp("*").add_custom("*")
+        except (ImportError, AttributeError):
+            kwargs["excluded_tools"] = []
         try:
             session = create(**kwargs)
         except TypeError:
@@ -167,6 +204,69 @@ async def _copilot_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
         return _extract_text(response)
     finally:
         await _stop_client(client)
+
+
+# ---------------------------------------------------------------------------
+# REST fallback (GitHub Models API) — from HACKATHON25-MCPShield pattern
+# ---------------------------------------------------------------------------
+
+
+def _rest_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
+    """Fallback: call GitHub Models REST API with GITHUB_TOKEN."""
+    import requests
+
+    api_key = os.environ.get("GITHUB_TOKEN")
+    if not api_key:
+        raise RuntimeError(
+            "REST fallback requires GITHUB_TOKEN environment variable. "
+            "Set it or install github-copilot-sdk for auto-authentication."
+        )
+
+    endpoint = "https://models.github.ai/inference/chat/completions"
+    model = config.model or "gpt-4.1"
+    api_model = model if "/" in model else f"openai/{model}"
+
+    payload = {
+        "model": api_model,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are FIDES, a quarantined JSON-only security judge. Do not request tools.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.0,
+        "max_tokens": 512,
+    }
+
+    response = requests.post(
+        endpoint,
+        json=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        timeout=config.timeout_seconds,
+    )
+
+    if response.status_code == 429:
+        retry_after = int(response.headers.get("Retry-After", "5"))
+        raise RuntimeError(f"Rate limited by GitHub Models API. Retry after {retry_after}s")
+
+    if response.status_code != 200:
+        raise RuntimeError(f"GitHub Models API error {response.status_code}: {response.text[:300]}")
+
+    data = response.json()
+    choices = data.get("choices", [])
+    if not choices:
+        raise RuntimeError("GitHub Models API returned no choices")
+
+    return choices[0].get("message", {}).get("content", "")
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
 def _extract_text(response: Any) -> str:
@@ -217,3 +317,4 @@ def _redact_public_value(value: Any) -> Any:
     if isinstance(value, (str, int, float, bool, type(None))):
         return value
     return str(value)
+

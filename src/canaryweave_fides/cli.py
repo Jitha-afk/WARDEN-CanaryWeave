@@ -273,7 +273,36 @@ def _judge_one(args: argparse.Namespace) -> int:
         "warden_decision": warden.to_dict(),
         "fides_decision": fides_decision.to_dict(),
     }
-    _write_json(args.output, payload)
+    if getattr(args, "format", "json") == "rich":
+        from .rich_report import render_warden_rule_check
+        run_loading_step("Evaluating WARDEN + FIDES gate...", enabled=not getattr(args, "no_animation", False))
+        # Show the FIDES decision (the full stack) in rich format
+        render_warden_rule_check(
+            prompt=prompt,
+            facts=facts,
+            decision=fides_decision.to_dict(),
+            rule_engine=rule_engine,
+            prompt_included=getattr(args, "include_prompt", False),
+            llm_verdict=f"{'1 malicious' if fides_decision.fides_verdict.value in ('unsafe',) else '0.5 uncertain' if fides_decision.fides_verdict.value in ('uncertain',) else '0 benign'}",
+        )
+        # Print FIDES-specific summary
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich import box
+        console = Console()
+        from rich.table import Table
+        fides_table = Table.grid(padding=(0, 2))
+        fides_table.add_column(style="bold yellow", no_wrap=True)
+        fides_table.add_column(style="white")
+        fides_table.add_row("FIDES Verdict", fides_decision.fides_verdict.value.upper())
+        fides_table.add_row("Decision", fides_decision.decision.value.upper())
+        fides_table.add_row("Blocked By", fides_decision.blocked_by.value)
+        if fides_decision.latency_ms is not None:
+            fides_table.add_row("Latency", f"{fides_decision.latency_ms:.0f}ms")
+        fides_table.add_row("Provider Calls", str(fides_decision.provider_calls))
+        console.print(Panel(fides_table, title="FIDES IFC Gate", box=box.ROUNDED, border_style="yellow"))
+    else:
+        _write_json(args.output, payload)
     return 0
 
 
@@ -508,6 +537,9 @@ def main(argv: list[str] | None = None) -> int:
     one.add_argument("--provider-calls-enabled", action="store_true")
     one.add_argument("--model", default=None)
     one.add_argument("--copilot-home", type=Path, default=None)
+    one.add_argument("--format", default="json", choices=["json", "rich"])
+    one.add_argument("--include-prompt", action="store_true")
+    one.add_argument("--no-animation", action="store_true")
     one.add_argument("--output", type=Path, default=None)
 
     bench = subparsers.add_parser("bench", help="Run prompt-file scans")

@@ -19,6 +19,8 @@ rule UntrustedInstructionShape {
     patterns:
         $injected_directive = /\b(?:ignore|disregard|override|forget|bypass)\b[^.\n]{0,20}\b(?:previous|prior|above|earlier|all|the\s+system)\b[^.\n]{0,20}\b(?:instructions?|rules?|prompts?|directions?|guidelines?)\b|\b(?:new\s+(?:instructions?|task|directive)\s*[:=]?|system\s+(?:override|prompt)\s*[:=]?|you\s+must\s+now)\b/i
         $role_redirect      = /\[\s*(?:system|assistant|instruction|developer)\s*\]|<\s*(?:system|instruction|im_start|im_end)\s*>|<\|(?:system|im_start)\|>/i
+    condition:
+        (($injected_directive or $role_redirect) and $instruction_shape) or ($instruction_shape and $from_untrusted_origin)
 }
 
 rule HiddenUnicodeStructure {
@@ -60,6 +62,11 @@ rule ProtectedContextExtraction {
     patterns:
         $reveal_context = /\b(?:show|reveal|display|print|repeat|dump|output|leak|disclose|tell\s+me)\b[^.\n]{0,30}\b(?:your\s+)?(?:system\s+prompt|initial\s+(?:instructions?|prompt)|hidden\s+(?:instructions?|prompt|context)|developer\s+(?:message|instructions?)|(?:tool|function)\s+schema|configuration|guardrails?)\b/i
         $context_probe  = /\b(?:what\s+(?:are|were)\s+your\s+(?:exact\s+)?(?:instructions?|rules?|directives?)|everything\s+(?:above|before)\s+this\s+(?:message|line)|repeat\s+the\s+(?:text|words)\s+above|word\s+for\s+word)\b/i
+        $target_context = /\b(?:target|extract|access|retrieve|obtain|get)\w*\b[^.\n]{0,30}\b(?:hidden|system|internal|protected|private)\s+(?:prompt|context|instructions?|policy|schema|configuration)\b/i
+    semantics:
+        $context_extraction_intent = "Content attempts to extract, reveal, or disclose protected system prompt, developer instructions, hidden context, tool schemas, or runtime configuration." (0.70)
+    condition:
+        ($reveal_context or $context_probe or $target_context or $context_extraction_intent) and $from_untrusted_origin
 }
 
 rule DeceptiveSocialEngineeringTasking {
@@ -78,4 +85,6 @@ rule DeceptiveSocialEngineeringTasking {
     patterns:
         $social_lure    = /\b(?:phishing|spear[\s-]?phishing|impersonat\w*|pose\s+as|pretend\s+to\s+be|masquerad\w*\s+as|spoof\w*)\b|\b(?:urgent(?:ly)?\s+(?:verify|confirm|update)|click\s+(?:here|the\s+link)\s+to\s+(?:verify|confirm|reset)|enter\s+your\s+(?:password|credentials|login))\b/i
         $target_profile = /\b(?:build|compile|gather|collect|put\s+together)\b[^.\n]{0,30}\b(?:profile|dossier|background\s+(?:check|report)|personal\s+(?:information|details)|home\s+address|phone\s+number)\b/i
+    condition:
+        ($social_lure or $target_profile) and $from_untrusted_origin
 }
