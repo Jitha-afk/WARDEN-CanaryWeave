@@ -2,6 +2,8 @@
 
 Controlled research POC for comparing a traditional regex guard, a defender-authored WARDEN rule layer, and an optional FIDES/IFC layer around quarantined `query_llm` calls.
 
+![CanaryWeave FIDES demo](docs/canaryweave-fides-demo.gif)
+
 ## Documentation
 
 - **[Documentation home](docs/README.md)** — full table of contents.
