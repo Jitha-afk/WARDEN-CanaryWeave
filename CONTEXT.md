@@ -23,8 +23,13 @@ The deterministic rule stack — regex baseline, YARA-style manifests, and `.war
 _Avoid_: rule service, detector engine
 
 **FIDES/IFC**:
-The optional layer applied only after WARDEN allows, in the `rules_plus_fides` stack, in two parts: (1) an always-on deterministic structural check — trusted-action (consequential actions must not stem from low-integrity or untrusted-origin data) and permitted-flow (restricted data may only reach permitted sinks); (2) the LLM judge, queried with the raw text, the facts, and the rule's `judge:` question. Separate from the quarantined model it helps guard.
-_Avoid_: guardrail, LLM gate
+The optional layer applied only after WARDEN allows, in the `rules_plus_fides` stack. Comprises two distinct components:
+
+(1) **FIDES Structural IFC** (`fides.py`): always-on deterministic checks using formal lattice operations — trusted-action policy (consequential actions must not stem from low-integrity or untrusted-origin data; enforced via `integrity_label.leq(T)`) and permitted-flow policy (restricted data may only reach permitted sinks; enforced via reader-set intersection). Uses the `lattice.py` abstractions: `IntegrityLattice`, `ConfidentialityLattice`, `PowersetLattice`, `ProductLattice`.
+
+(2) **FIDES Semantic Judge** (`gate.py:FidesJudge`): the LLM-as-judge escalation path, queried with the raw text, the facts, and the rule's `judge:` question when WARDEN allows but a `PendingFidesCheck` exists. Separate from the quarantined model it helps guard.
+
+_Avoid_: guardrail, LLM gate; conflating the two components — structural IFC is deterministic and always-on within the stack, the semantic judge is probabilistic and only invoked on WARDEN misses.
 
 **Guard stack**:
 A named evaluation configuration compared apples-to-apples on the same NormalizedTrace: `no_guard`, `regex_baseline`, `yara_rules`, `rules_plus_fides`.

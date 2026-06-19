@@ -20,6 +20,8 @@ rule ServerSamplingOriginBoundary {
     patterns:
         $authority_directive = /\b(?:as\s+(?:the\s+)?(?:system|admin(?:istrator)?|host|operator|root)|on\s+behalf\s+of\s+the\s+(?:system|host|user)|you\s+are\s+(?:authori[sz]ed|approved|cleared|permitted)\s+to)\b[^.\n]{0,30}\b(?:run|execute|invoke|call|dispatch|approve|perform)\b/i
         $tool_dispatch_claim = /\b(?:the\s+(?:system|host|policy)\s+(?:says|requires|instructs|approves|authori[sz]es)|automatically\s+(?:approve|allow|run|execute)|no\s+(?:confirmation|approval|review)\s+(?:is\s+)?(?:needed|required))\b[^.\n]{0,30}\b(?:tool|command|action|function|call)\b/i
+    condition:
+        ($from_untrusted_origin and $tool_call_shape and $capability_denied) or (($authority_directive or $tool_dispatch_claim) and $from_untrusted_origin)
 }
 
 rule CanaryBoundaryCrossing {
