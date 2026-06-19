@@ -2,6 +2,13 @@
 
 Controlled research POC for comparing a traditional regex guard, a defender-authored WARDEN rule layer, and an optional FIDES/IFC layer around quarantined `query_llm` calls.
 
+## Documentation
+
+- **[Documentation home](docs/README.md)** — full table of contents.
+- **[Architecture](docs/architecture/README.md)** — [HLD](docs/architecture/hld.md), [LLD](docs/architecture/lld.md), [DFD](docs/architecture/dfd.md), and the [known post-refactor gaps](docs/architecture/README.md#known-gaps).
+- **[`CONTEXT.md`](CONTEXT.md)** — the canonical glossary.
+- **[Developer guide](docs/developer.md)** · **[Rule authoring](docs/rule_authoring.md)** · **[Running evaluations](docs/running_evals.md)**
+
 ## Thesis
 
 The research claim is intentionally narrow:
