@@ -17,6 +17,7 @@ copilot = ["github-copilot-sdk>=1.0.0,<2; python_version >= '3.11'"]
 dev = ["pytest>=8.0", "build>=1.0"]
 
 [project.scripts]
+warden = "canaryweave_fides.cli:main"
 canaryweave-fides = "canaryweave_fides.cli:main"
 
 [tool.setuptools.packages.find]

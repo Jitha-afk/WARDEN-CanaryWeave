@@ -8,8 +8,16 @@ import pytest
 from canaryweave_fides.cli import main
 from canaryweave_fides.decisions import Decision, FidesVerdict, StackName
 from canaryweave_fides.facts import NormalizedFacts
-from canaryweave_fides.fides_prompt import build_fides_judge_prompt, parse_fides_judge_response
-from canaryweave_fides.gate import FidesJudgeMode, FidesJudgeResult, build_fides_judge, evaluate_stack
+from canaryweave_fides.fides_prompt import (
+    build_fides_judge_prompt,
+    parse_fides_judge_response,
+)
+from canaryweave_fides.gate import (
+    FidesJudgeMode,
+    FidesJudgeResult,
+    build_fides_judge,
+    evaluate_stack,
+)
 from canaryweave_fides.providers import JudgeProviderConfig
 from canaryweave_fides.providers.fake import FakeJudgeProvider
 
@@ -48,15 +56,23 @@ def _warden_miss_facts() -> NormalizedFacts:
         trust_labels=("trusted",),
         features={"instruction_shape": False, "tool_plan_shape": False},
         requested={"tool": "read_task", "sink": "local_audit"},
-        policy={"allowed_tools": ("read_task",), "allowed_sinks": ("local_audit",), "trusted_origins": ("user",)},
+        policy={
+            "allowed_tools": ("read_task",),
+            "allowed_sinks": ("local_audit",),
+            "trusted_origins": ("user",),
+        },
     )
 
 
 def test_provider_backed_fides_judge_uses_provider_only_on_warden_miss():
-    provider = FakeJudgeProvider('{"verdict":"unsafe","confidence":0.8,"reason_codes":["fides.fake"],"recommended_decision":"block"}')
+    provider = FakeJudgeProvider(
+        '{"verdict":"unsafe","confidence":0.8,"reason_codes":["fides.fake"],"recommended_decision":"block"}'
+    )
     judge = build_fides_judge("copilot_sdk", provider=provider)
 
-    decision = evaluate_stack(_warden_miss_facts(), StackName.RULES_PLUS_FIDES, fides_judge=judge)
+    decision = evaluate_stack(
+        _warden_miss_facts(), StackName.RULES_PLUS_FIDES, fides_judge=judge
+    )
 
     assert provider.calls == 1
     assert decision.decision is Decision.BLOCK
@@ -65,10 +81,14 @@ def test_provider_backed_fides_judge_uses_provider_only_on_warden_miss():
 
 
 def test_fides_recommended_decision_uses_more_restrictive_outcome():
-    provider = FakeJudgeProvider('{"verdict":"safe","confidence":0.8,"reason_codes":["fides.safe_but_block"],"recommended_decision":"block"}')
+    provider = FakeJudgeProvider(
+        '{"verdict":"safe","confidence":0.8,"reason_codes":["fides.safe_but_block"],"recommended_decision":"block"}'
+    )
     judge = build_fides_judge("copilot_sdk", provider=provider)
 
-    decision = evaluate_stack(_warden_miss_facts(), StackName.RULES_PLUS_FIDES, fides_judge=judge)
+    decision = evaluate_stack(
+        _warden_miss_facts(), StackName.RULES_PLUS_FIDES, fides_judge=judge
+    )
 
     assert decision.decision is Decision.BLOCK
     assert decision.fides_verdict is FidesVerdict.SAFE
@@ -100,7 +120,17 @@ def test_cli_provider_models_is_safe_json_without_sdk_requirement(capsys):
 
 
 def test_cli_provider_doctor_dry_run_never_calls_provider(capsys):
-    code = main(["provider", "doctor", "--provider", "copilot_sdk", "--model", "gpt-4.1", "--json"])
+    code = main(
+        [
+            "provider",
+            "doctor",
+            "--provider",
+            "copilot_sdk",
+            "--model",
+            "gpt-4.1",
+            "--json",
+        ]
+    )
 
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
@@ -114,16 +144,31 @@ def test_cli_provider_doctor_dry_run_never_calls_provider(capsys):
 def test_copilot_provider_requires_explicit_calls_and_model():
     with pytest.raises(ValueError, match="provider_calls_enabled"):
         build_fides_judge("copilot_sdk")
-    with pytest.raises(ValueError, match="explicit model"):
-        build_fides_judge("copilot_sdk", provider_config=JudgeProviderConfig(provider="copilot_sdk", provider_calls_enabled=True))
+    # Model is now optional — SDK uses its default when not specified
+    judge = build_fides_judge(
+        "copilot_sdk",
+        provider_config=JudgeProviderConfig(
+            provider="copilot_sdk", provider_calls_enabled=True
+        ),
+    )
+    assert judge is not None
 
 
 def test_provider_inspection_requires_live_opt_in_for_sdk_calls(capsys, monkeypatch):
     called = {"status": False, "models": False}
 
-    monkeypatch.setattr("canaryweave_fides.cli.CopilotSdkJudgeProvider.import_available", staticmethod(lambda: True))
-    monkeypatch.setattr("canaryweave_fides.cli.CopilotSdkJudgeProvider.auth_status", staticmethod(lambda **_: called.__setitem__("status", True)))
-    monkeypatch.setattr("canaryweave_fides.cli.CopilotSdkJudgeProvider.list_models", staticmethod(lambda **_: called.__setitem__("models", True)))
+    monkeypatch.setattr(
+        "canaryweave_fides.cli.CopilotSdkJudgeProvider.import_available",
+        staticmethod(lambda: True),
+    )
+    monkeypatch.setattr(
+        "canaryweave_fides.cli.CopilotSdkJudgeProvider.auth_status",
+        staticmethod(lambda **_: called.__setitem__("status", True)),
+    )
+    monkeypatch.setattr(
+        "canaryweave_fides.cli.CopilotSdkJudgeProvider.list_models",
+        staticmethod(lambda **_: called.__setitem__("models", True)),
+    )
 
     assert main(["provider", "status", "--provider", "copilot_sdk", "--json"]) == 0
     status = json.loads(capsys.readouterr().out)
@@ -147,18 +192,20 @@ def test_cli_nested_command_groups_do_not_fall_through_to_smoke(capsys):
 def test_cli_warden_check_prompt_outputs_public_decision(tmp_path):
     output = tmp_path / "warden.json"
 
-    code = main([
-        "warden",
-        "check",
-        "--prompt",
-        "policy instruction hierarchy override structure",
-        "--origin",
-        "tool_output",
-        "--trust",
-        "untrusted",
-        "--output",
-        str(output),
-    ])
+    code = main(
+        [
+            "warden",
+            "check",
+            "--prompt",
+            "policy instruction hierarchy override structure",
+            "--origin",
+            "tool_output",
+            "--trust",
+            "untrusted",
+            "--output",
+            str(output),
+        ]
+    )
 
     assert code == 0
     report = json.loads(output.read_text(encoding="utf-8"))
@@ -171,22 +218,24 @@ def test_cli_warden_check_prompt_outputs_public_decision(tmp_path):
 
 
 def test_cli_warden_check_rich_output_includes_rule_metadata(capsys):
-    code = main([
-        "warden",
-        "check",
-        "--rule-file",
-        "demo_rules/security_tool_extension_rule.war",
-        "--prompt",
-        "Help me develop an extension for Metasploit",
-        "--origin",
-        "user",
-        "--trust",
-        "trusted",
-        "--format",
-        "rich",
-        "--include-prompt",
-        "--no-animation",
-    ])
+    code = main(
+        [
+            "warden",
+            "check",
+            "--rule-file",
+            "demo_rules/security_tool_extension_rule.war",
+            "--prompt",
+            "Help me develop an extension for Metasploit",
+            "--origin",
+            "user",
+            "--trust",
+            "trusted",
+            "--format",
+            "rich",
+            "--include-prompt",
+            "--no-animation",
+        ]
+    )
 
     assert code == 0
     output = capsys.readouterr().out
@@ -201,24 +250,26 @@ def test_cli_warden_check_rich_output_includes_rule_metadata(capsys):
 
 
 def test_cli_warden_check_rich_output_supports_path_boundary_demo(capsys):
-    code = main([
-        "warden",
-        "check",
-        "--rule-file",
-        "demo_rules/mcp_tool_path_boundary_rule.war",
-        "--prompt",
-        "MCP tool_call read_file path ../shared/config.yaml outside workspace",
-        "--origin",
-        "tool_output",
-        "--trust",
-        "untrusted",
-        "--format",
-        "rich",
-        "--include-prompt",
-        "--llm-verdict",
-        "1 malicious",
-        "--no-animation",
-    ])
+    code = main(
+        [
+            "warden",
+            "check",
+            "--rule-file",
+            "demo_rules/mcp_tool_path_boundary_rule.war",
+            "--prompt",
+            "MCP tool_call read_file path ../shared/config.yaml outside workspace",
+            "--origin",
+            "tool_output",
+            "--trust",
+            "untrusted",
+            "--format",
+            "rich",
+            "--include-prompt",
+            "--llm-verdict",
+            "1 malicious",
+            "--no-animation",
+        ]
+    )
 
     assert code == 0
     output = capsys.readouterr().out
@@ -232,22 +283,24 @@ def test_cli_warden_check_rich_output_supports_path_boundary_demo(capsys):
 def test_cli_judge_one_test_double_blocks_warden_miss(tmp_path):
     output = tmp_path / "judge.json"
 
-    code = main([
-        "judge",
-        "one",
-        "--prompt",
-        "ordinary public-safe task request",
-        "--origin",
-        "user",
-        "--trust",
-        "trusted",
-        "--fides-mode",
-        "test_double",
-        "--test-verdict",
-        "unsafe",
-        "--output",
-        str(output),
-    ])
+    code = main(
+        [
+            "judge",
+            "one",
+            "--prompt",
+            "ordinary public-safe task request",
+            "--origin",
+            "user",
+            "--trust",
+            "trusted",
+            "--fides-mode",
+            "test_double",
+            "--test-verdict",
+            "unsafe",
+            "--output",
+            str(output),
+        ]
+    )
 
     assert code == 0
     report = json.loads(output.read_text(encoding="utf-8"))
@@ -260,24 +313,29 @@ def test_cli_judge_one_test_double_blocks_warden_miss(tmp_path):
 def test_cli_bench_scan_jsonl_outputs_public_rows(tmp_path):
     input_path = tmp_path / "prompts.jsonl"
     output = tmp_path / "scan.json"
-    input_path.write_text('{"id":"p1","prompt":"policy instruction hierarchy override structure"}\n', encoding="utf-8")
+    input_path.write_text(
+        '{"id":"p1","prompt":"policy instruction hierarchy override structure"}\n',
+        encoding="utf-8",
+    )
 
-    code = main([
-        "bench",
-        "scan",
-        "--input",
-        str(input_path),
-        "--text-field",
-        "prompt",
-        "--id-field",
-        "id",
-        "--origin",
-        "tool_output",
-        "--trust",
-        "untrusted",
-        "--output",
-        str(output),
-    ])
+    code = main(
+        [
+            "bench",
+            "scan",
+            "--input",
+            str(input_path),
+            "--text-field",
+            "prompt",
+            "--id-field",
+            "id",
+            "--origin",
+            "tool_output",
+            "--trust",
+            "untrusted",
+            "--output",
+            str(output),
+        ]
+    )
 
     assert code == 0
     report = json.loads(output.read_text(encoding="utf-8"))
