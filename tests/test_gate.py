@@ -75,7 +75,13 @@ def test_warden_uses_rule_engine_instead_of_hardcoded_heuristics():
 
 def test_rules_plus_fides_does_not_call_fides_when_warden_blocks():
     facts = NormalizedFacts.from_attack_case(_case())
-    judge = StaticFidesJudge({facts.case_id: FidesJudgeResult(verdict="unsafe", reason_codes=("would_have_blocked",))})
+    judge = StaticFidesJudge(
+        {
+            facts.case_id: FidesJudgeResult(
+                verdict="unsafe", reason_codes=("would_have_blocked",)
+            )
+        }
+    )
 
     decision = evaluate_stack(facts, StackName.RULES_PLUS_FIDES, fides_judge=judge)
 
@@ -95,7 +101,13 @@ def test_rules_plus_fides_calls_judge_for_warden_miss_and_blocks_on_unsafe():
         requested_sink="local_audit",
     )
     facts = NormalizedFacts.from_attack_case(case)
-    judge = StaticFidesJudge({facts.case_id: FidesJudgeResult(verdict="unsafe", reason_codes=("semantic_policy_violation",))})
+    judge = StaticFidesJudge(
+        {
+            facts.case_id: FidesJudgeResult(
+                verdict="unsafe", reason_codes=("semantic_policy_violation",)
+            )
+        }
+    )
 
     decision = evaluate_stack(facts, StackName.RULES_PLUS_FIDES, fides_judge=judge)
 
@@ -221,10 +233,17 @@ def test_rules_plus_fides_default_mode_is_disabled_and_does_not_call_provider():
 
 
 def test_fides_judge_modes_are_explicit():
-    assert [mode.value for mode in FidesJudgeMode] == ["disabled", "test_double", "provider_placeholder", "copilot_sdk"]
+    assert [mode.value for mode in FidesJudgeMode] == [
+        "disabled",
+        "test_double",
+        "provider_placeholder",
+        "copilot_sdk",
+    ]
     assert isinstance(build_fides_judge("disabled"), DisabledFidesJudge)
     assert isinstance(build_fides_judge("test_double"), StaticFidesJudge)
-    assert isinstance(build_fides_judge("provider_placeholder"), ProviderPlaceholderFidesJudge)
+    assert isinstance(
+        build_fides_judge("provider_placeholder"), ProviderPlaceholderFidesJudge
+    )
 
 
 def test_provider_placeholder_never_makes_real_provider_calls():

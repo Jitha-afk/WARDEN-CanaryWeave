@@ -5,7 +5,6 @@ from typing import Any, Mapping
 
 from .cases import AttackCase, _as_mapping, _public_safe
 
-
 _FLAG_KEYS = (
     "instruction_shape",
     "tool_plan_shape",
@@ -32,13 +31,21 @@ def _first_mapping_value(mapping: Mapping[str, Any], keys: tuple[str, ...]) -> A
     return None
 
 
-def _policy_tuple(policy: Mapping[str, Any], primary: str, aliases: tuple[str, ...] = ()) -> tuple[str, ...]:
+def _policy_tuple(
+    policy: Mapping[str, Any], primary: str, aliases: tuple[str, ...] = ()
+) -> tuple[str, ...]:
     return _as_tuple(_first_mapping_value(policy, (primary, *aliases)))
 
 
 def _restore_policy_tuples(policy: Mapping[str, Any]) -> dict[str, Any]:
     restored = dict(policy)
-    for key in ("allowed_tools", "allowed_capabilities", "allowed_sinks", "trusted_origins", "protected_labels"):
+    for key in (
+        "allowed_tools",
+        "allowed_capabilities",
+        "allowed_sinks",
+        "trusted_origins",
+        "protected_labels",
+    ):
         if key in restored:
             restored[key] = _as_tuple(restored[key])
     return restored
@@ -84,9 +91,15 @@ class NormalizedFacts:
         context = _as_mapping(case.policy_context)
         private = _as_mapping(case.private_data)
 
-        origin_labels = _as_tuple(_first_mapping_value(safe, ("origin_labels", "origins", "origin")))
-        trust_labels = _as_tuple(_first_mapping_value(safe, ("trust_labels", "trust", "integrity")))
-        role_labels = _as_tuple(_first_mapping_value(safe, ("role_labels", "roles", "role", "source_label")))
+        origin_labels = _as_tuple(
+            _first_mapping_value(safe, ("origin_labels", "origins", "origin"))
+        )
+        trust_labels = _as_tuple(
+            _first_mapping_value(safe, ("trust_labels", "trust", "integrity"))
+        )
+        role_labels = _as_tuple(
+            _first_mapping_value(safe, ("role_labels", "roles", "role", "source_label"))
+        )
 
         features = {key: bool(safe.get(key, False)) for key in _FLAG_KEYS}
         for source, target in (
@@ -116,20 +129,34 @@ class NormalizedFacts:
             if key in safe:
                 features[key] = safe[key]
 
-        requested_tool = _first_mapping_value(safe, ("requested_tool", "tool", "capability"))
-        requested_capability = _first_mapping_value(safe, ("requested_capability", "capability", "requested_tool", "tool"))
-        requested_sink = _first_mapping_value(safe, ("requested_sink", "sink", "target_sink"))
+        requested_tool = _first_mapping_value(
+            safe, ("requested_tool", "tool", "capability")
+        )
+        requested_capability = _first_mapping_value(
+            safe, ("requested_capability", "capability", "requested_tool", "tool")
+        )
+        requested_sink = _first_mapping_value(
+            safe, ("requested_sink", "sink", "target_sink")
+        )
         requested = {
             "tool": requested_tool,
             "capability": requested_capability,
             "action": _first_mapping_value(safe, ("requested_action", "action")),
             "sink": requested_sink,
         }
-        requested = {key: value for key, value in requested.items() if value is not None}
+        requested = {
+            key: value for key, value in requested.items() if value is not None
+        }
 
-        allowed_tools = _policy_tuple(context, "allowed_tools", ("allowed_capabilities",))
-        allowed_capabilities = _policy_tuple(context, "allowed_capabilities", ("allowed_tools",))
-        allowed_sinks = _policy_tuple(context, "allowed_sinks", ("permitted_sinks", "allowed_canary_sinks"))
+        allowed_tools = _policy_tuple(
+            context, "allowed_tools", ("allowed_capabilities",)
+        )
+        allowed_capabilities = _policy_tuple(
+            context, "allowed_capabilities", ("allowed_tools",)
+        )
+        allowed_sinks = _policy_tuple(
+            context, "allowed_sinks", ("permitted_sinks", "allowed_canary_sinks")
+        )
         trusted_origins = _policy_tuple(context, "trusted_origins")
         protected_labels = _policy_tuple(context, "protected_labels")
         policy = {
@@ -142,12 +169,30 @@ class NormalizedFacts:
         if "canary_policy" in context:
             policy["canary_policy"] = context["canary_policy"]
 
-        tool_allowed = None if requested_tool is None else str(requested_tool) in allowed_tools
-        capability_allowed = None if requested_capability is None else str(requested_capability) in allowed_capabilities
-        origin_trusted = None if not origin_labels or not trusted_origins else any(origin in trusted_origins for origin in origin_labels)
-        sink_allowed = None if requested_sink is None else str(requested_sink) in allowed_sinks
-        protected_flow = bool(features.get("canary_present")) or bool(protected_labels and requested_sink)
-        flow_allowed = None if not protected_flow and requested_sink is None else bool(sink_allowed)
+        tool_allowed = (
+            None if requested_tool is None else str(requested_tool) in allowed_tools
+        )
+        capability_allowed = (
+            None
+            if requested_capability is None
+            else str(requested_capability) in allowed_capabilities
+        )
+        origin_trusted = (
+            None
+            if not origin_labels or not trusted_origins
+            else any(origin in trusted_origins for origin in origin_labels)
+        )
+        sink_allowed = (
+            None if requested_sink is None else str(requested_sink) in allowed_sinks
+        )
+        protected_flow = bool(features.get("canary_present")) or bool(
+            protected_labels and requested_sink
+        )
+        flow_allowed = (
+            None
+            if not protected_flow and requested_sink is None
+            else bool(sink_allowed)
+        )
 
         return cls(
             case_id=case.case_id,

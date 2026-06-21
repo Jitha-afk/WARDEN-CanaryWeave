@@ -50,7 +50,9 @@ def _dataset_catalog(path: Path | None, *, base: Path) -> dict[str, Mapping[str,
     datasets = data.get("datasets", {})
     if not isinstance(datasets, Mapping):
         raise ValueError("datasets config must contain a mapping at 'datasets'")
-    return {str(dataset_id): dict(config or {}) for dataset_id, config in datasets.items()}
+    return {
+        str(dataset_id): dict(config or {}) for dataset_id, config in datasets.items()
+    }
 
 
 def _stack_order(path: Path | None, *, base: Path) -> tuple[StackName, ...]:
@@ -73,15 +75,35 @@ def _max_cases_from_sample(sample: Any) -> int | None:
     return None
 
 
-def _adapter_for_dataset(dataset_entry: Mapping[str, Any], catalog: Mapping[str, Mapping[str, Any]], *, base: Path) -> DatasetAdapter:
-    dataset_id = str(dataset_entry.get("dataset_id") or dataset_entry.get("id") or dataset_entry.get("name") or "")
+def _adapter_for_dataset(
+    dataset_entry: Mapping[str, Any],
+    catalog: Mapping[str, Mapping[str, Any]],
+    *,
+    base: Path,
+) -> DatasetAdapter:
+    dataset_id = str(
+        dataset_entry.get("dataset_id")
+        or dataset_entry.get("id")
+        or dataset_entry.get("name")
+        or ""
+    )
     if not dataset_id:
         raise ValueError("dataset entry missing dataset_id")
     catalog_entry = dict(catalog.get(dataset_id, {}))
-    adapter_name = str(dataset_entry.get("adapter") or catalog_entry.get("adapter") or dataset_id)
-    root_value = dataset_entry.get("root") or dataset_entry.get("path") or dataset_entry.get("local_path")
+    adapter_name = str(
+        dataset_entry.get("adapter") or catalog_entry.get("adapter") or dataset_id
+    )
+    root_value = (
+        dataset_entry.get("root")
+        or dataset_entry.get("path")
+        or dataset_entry.get("local_path")
+    )
     if root_value is None:
-        root_value = catalog_entry.get("root") or catalog_entry.get("path") or catalog_entry.get("local_path")
+        root_value = (
+            catalog_entry.get("root")
+            or catalog_entry.get("path")
+            or catalog_entry.get("local_path")
+        )
     root = _resolve_path(root_value, base=base)
     max_cases = dataset_entry.get("max_cases")
     if max_cases is None:
@@ -96,12 +118,17 @@ def _adapter_for_dataset(dataset_entry: Mapping[str, Any], catalog: Mapping[str,
         # dataset, attempt to load it unless that eval entry explicitly sets
         # enabled: false; missing optional roots are reported as explicit skips.
         enabled=bool(dataset_entry.get("enabled", True)),
-        required=bool(dataset_entry.get("required", catalog_entry.get("required", False))),
+        required=bool(
+            dataset_entry.get("required", catalog_entry.get("required", False))
+        ),
         max_cases=max_cases,
         options={
             "dataset_id": dataset_id,
-            "absent_behavior": dataset_entry.get("missing_status") or catalog_entry.get("absent_behavior"),
-            "public_safe": dataset_entry.get("public_safe", catalog_entry.get("public_safe")),
+            "absent_behavior": dataset_entry.get("missing_status")
+            or catalog_entry.get("absent_behavior"),
+            "public_safe": dataset_entry.get(
+                "public_safe", catalog_entry.get("public_safe")
+            ),
         },
     )
     return create_adapter(adapter_name, config)
@@ -120,10 +147,17 @@ def load_eval_config(
         raise ValueError("eval_config is required")
     data = _read_yaml(eval_path)
     catalog = _dataset_catalog(_resolve_path(datasets_config, base=base), base=base)
-    adapters = tuple(_adapter_for_dataset(entry, catalog, base=base) for entry in data.get("datasets", ()))
-    configured_stacks = tuple(StackName.coerce(stack) for stack in data.get("stacks", ()))
+    adapters = tuple(
+        _adapter_for_dataset(entry, catalog, base=base)
+        for entry in data.get("datasets", ())
+    )
+    configured_stacks = tuple(
+        StackName.coerce(stack) for stack in data.get("stacks", ())
+    )
     if not configured_stacks:
-        configured_stacks = _stack_order(_resolve_path(stacks_config, base=base), base=base)
+        configured_stacks = _stack_order(
+            _resolve_path(stacks_config, base=base), base=base
+        )
     runner = data.get("runner", {}) or {}
     outputs = data.get("outputs", {}) or {}
     if not isinstance(runner, Mapping) or not isinstance(outputs, Mapping):
@@ -132,7 +166,9 @@ def load_eval_config(
         adapters=adapters,
         iterations=int(runner.get("iterations", 50)),
         stacks=configured_stacks,
-        fides_mode=FidesJudgeMode.coerce(runner.get("fides_mode", FidesJudgeMode.DISABLED)),
+        fides_mode=FidesJudgeMode.coerce(
+            runner.get("fides_mode", FidesJudgeMode.DISABLED)
+        ),
         fides_test_double_evidence_rules=tuple(
             dict(rule) for rule in runner.get("fides_test_double_evidence_rules", ())
         ),

@@ -15,7 +15,9 @@ class QueryRequest:
 
 
 class DeterministicQuarantinedModelStub:
-    def __init__(self, output_text: str, output_trace: tuple[TraceEvent, ...] | None = None):
+    def __init__(
+        self, output_text: str, output_trace: tuple[TraceEvent, ...] | None = None
+    ):
         self.output_text = output_text
         self.output_trace = output_trace
         self.calls = 0

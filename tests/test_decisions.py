@@ -37,8 +37,19 @@ def test_gate_decision_represents_all_required_enum_values():
         "rules_plus_fides",
     ]
     assert [decision.value for decision in Decision] == ["allow", "quarantine", "block"]
-    assert [blocked_by.value for blocked_by in BlockedBy] == ["regex", "yara_rule", "fides_judge", "none"]
-    assert [verdict.value for verdict in FidesVerdict] == ["safe", "unsafe", "uncertain", "disabled", "not_called"]
+    assert [blocked_by.value for blocked_by in BlockedBy] == [
+        "regex",
+        "yara_rule",
+        "fides_judge",
+        "none",
+    ]
+    assert [verdict.value for verdict in FidesVerdict] == [
+        "safe",
+        "unsafe",
+        "uncertain",
+        "disabled",
+        "not_called",
+    ]
 
 
 def test_gate_decision_from_dict_accepts_strings_and_round_trips_lists():
@@ -59,7 +70,9 @@ def test_gate_decision_from_dict_accepts_strings_and_round_trips_lists():
     assert loaded.decision is Decision.BLOCK
     assert loaded.blocked_by is BlockedBy.FIDES_JUDGE
     assert loaded.provider_calls == 1
-    assert loaded.to_dict()["rule_ids"] == ["cwfr.mcp.prompt_boundary.untrusted_instruction_shape"]
+    assert loaded.to_dict()["rule_ids"] == [
+        "cwfr.mcp.prompt_boundary.untrusted_instruction_shape"
+    ]
     assert loaded.to_dict()["reason_codes"] == ["fides_policy_violation"]
 
 

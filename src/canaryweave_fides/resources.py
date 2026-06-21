@@ -18,13 +18,19 @@ def resource_root() -> Path:
     Wheels include a mirrored assets/ tree inside the Python package.
     """
     root = source_root()
-    if (root / "rules").exists() and (root / "conf").exists() and (root / "data").exists():
+    if (
+        (root / "rules").exists()
+        and (root / "conf").exists()
+        and (root / "data").exists()
+    ):
         return root
     asset_root = resources.files(_PACKAGE).joinpath("assets")
     return Path(str(asset_root))
 
 
-def validate_rules_root(root: Path | str, *, expected_count: int = EXPECTED_RULE_COUNT) -> Path:
+def validate_rules_root(
+    root: Path | str, *, expected_count: int = EXPECTED_RULE_COUNT
+) -> Path:
     """Return a valid rules root or raise a clear portability error.
 
     Rules are authored as multi-rule rulesets, so the on-disk ``.war`` *file*

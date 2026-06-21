@@ -58,9 +58,15 @@ class GateDecision:
         object.__setattr__(self, "stack", StackName.coerce(self.stack))
         object.__setattr__(self, "decision", Decision.coerce(self.decision))
         object.__setattr__(self, "blocked_by", BlockedBy.coerce(self.blocked_by))
-        object.__setattr__(self, "fides_verdict", FidesVerdict.coerce(self.fides_verdict))
-        object.__setattr__(self, "rule_ids", tuple(str(rule_id) for rule_id in self.rule_ids))
-        object.__setattr__(self, "reason_codes", tuple(str(code) for code in self.reason_codes))
+        object.__setattr__(
+            self, "fides_verdict", FidesVerdict.coerce(self.fides_verdict)
+        )
+        object.__setattr__(
+            self, "rule_ids", tuple(str(rule_id) for rule_id in self.rule_ids)
+        )
+        object.__setattr__(
+            self, "reason_codes", tuple(str(code) for code in self.reason_codes)
+        )
         if self.latency_ms is not None:
             latency_ms = float(self.latency_ms)
             if latency_ms < 0:

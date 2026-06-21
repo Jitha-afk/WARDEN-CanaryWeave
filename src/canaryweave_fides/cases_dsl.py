@@ -30,7 +30,9 @@ from typing import Any
 from .cases import AttackCase, CaseKind, ExpectedBehavior
 from .fact_registry import FACT_NAMES
 
-_STRUCTURAL_FACTS = frozenset({"from_untrusted_origin", "capability_denied", "canary_outside_sink"})
+_STRUCTURAL_FACTS = frozenset(
+    {"from_untrusted_origin", "capability_denied", "canary_outside_sink"}
+)
 
 _HEADER_RE = re.compile(r"^cases\s+([A-Za-z0-9_.\-]+)\s*(\[[^\]]*\])?\s*\{$")
 _CASE_RE = re.compile(r'^"((?:[^"\\]|\\.)*)"\s*->\s*(block|allow)$')
@@ -77,7 +79,9 @@ def _parse_header_facts(raw: str | None, *, line: int) -> tuple[str, ...]:
         if not token:
             continue
         if not token.startswith("$"):
-            raise CasesParseError(f"line {line}: fact profile entries must start with '$': {token!r}")
+            raise CasesParseError(
+                f"line {line}: fact profile entries must start with '$': {token!r}"
+            )
         name = token[1:]
         if name not in FACT_NAMES:
             raise CasesParseError(f"line {line}: unknown fact ${name}")
@@ -126,7 +130,9 @@ def parse_cases(text: str) -> tuple[CaseExample, ...]:
         try:
             detail = json.loads('"' + detail_raw + '"')
         except json.JSONDecodeError as exc:
-            raise CasesParseError(f"line {lineno}: invalid string escape: {exc}") from exc
+            raise CasesParseError(
+                f"line {lineno}: invalid string escape: {exc}"
+            ) from exc
         assert current_type is not None  # set when in_block becomes True
         examples.append(
             CaseExample(
@@ -182,6 +188,8 @@ def case_example_to_attack_case(example: CaseExample, *, index: int) -> AttackCa
         surface="prompt",
         safe_features=safe_features,
         policy_context=policy_context,
-        expected_behavior=ExpectedBehavior.BLOCK if is_block else ExpectedBehavior.ALLOW,
+        expected_behavior=(
+            ExpectedBehavior.BLOCK if is_block else ExpectedBehavior.ALLOW
+        ),
         private_data={"raw_input": example.detail},
     )

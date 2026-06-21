@@ -86,4 +86,6 @@ def fact_spec(name: str) -> FactSpec:
         return FACT_SPECS[name]
     except KeyError as exc:
         known = ", ".join(sorted(FACT_NAMES))
-        raise UnknownFactError(f"unknown fact ${name!r}; frozen facts are: {known}") from exc
+        raise UnknownFactError(
+            f"unknown fact ${name!r}; frozen facts are: {known}"
+        ) from exc

@@ -65,7 +65,12 @@ class FidesIFCLayer:
     string comparisons.
     """
 
-    def __init__(self, mode: FidesIFCMode | str | bool = FidesIFCMode.DISABLED, *, enabled: bool | None = None):
+    def __init__(
+        self,
+        mode: FidesIFCMode | str | bool = FidesIFCMode.DISABLED,
+        *,
+        enabled: bool | None = None,
+    ):
         if enabled is not None:
             mode = FidesIFCMode.TEST_DOUBLE if enabled else FidesIFCMode.DISABLED
         self.mode = FidesIFCMode.coerce(mode)
@@ -74,10 +79,17 @@ class FidesIFCLayer:
     def enabled(self) -> bool:
         return self.mode != FidesIFCMode.DISABLED
 
-    def evaluate(self, trace: tuple[TraceEvent, ...], policy: PolicyContext) -> FidesVerdict:
+    def evaluate(
+        self, trace: tuple[TraceEvent, ...], policy: PolicyContext
+    ) -> FidesVerdict:
         """Evaluate trace events against IFC policies using lattice operations."""
         if not self.enabled:
-            return FidesVerdict(verdict="disabled", confidence=0.0, blocks=False, rationale_short="FIDES/IFC disabled.")
+            return FidesVerdict(
+                verdict="disabled",
+                confidence=0.0,
+                blocks=False,
+                rationale_short="FIDES/IFC disabled.",
+            )
 
         checks: list[str] = []
         unsafe = False
@@ -116,4 +128,3 @@ class FidesIFCLayer:
             policy_checks=("trusted_action", "permitted_flow"),
             rationale_short="No FIDES/IFC policy violation observed.",
         )
-

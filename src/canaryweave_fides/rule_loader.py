@@ -121,13 +121,15 @@ def _parse_pattern_rhs(name: str, rhs: str) -> dict[str, Any]:
         return {"name": name, "type": "regex", "pattern": pattern, "flags": flags}
     if rhs and rhs[0] == '"':
         return {"name": name, "type": "exact", "value": _unquote(rhs)}
-    raise RuleParseError(f"pattern ${name} must be a /regex/flags literal or a \"quoted\" string, got: {rhs!r}")
+    raise RuleParseError(
+        f'pattern ${name} must be a /regex/flags literal or a "quoted" string, got: {rhs!r}'
+    )
 
 
 def _parse_scored_rhs(name: str, rhs: str, *, key: str) -> dict[str, Any]:
     match = _SCORED_RE.match(rhs.strip())
     if not match:
-        raise RuleParseError(f"${name} must look like \"text\" (0.70), got: {rhs!r}")
+        raise RuleParseError(f'${name} must look like "text" (0.70), got: {rhs!r}')
     text = match.group(1).strip()
     if not (len(text) >= 2 and text[0] == '"' and text[-1] == '"'):
         raise RuleParseError(f"${name} text must be quoted, got: {text!r}")
@@ -157,7 +159,9 @@ def parse_ruleset(text: str, *, source: str = "<string>") -> tuple[RuleDefinitio
         try:
             rules.append(validate_rule(current))
         except RuleValidationError as exc:
-            raise RuleValidationError(f"{source}: rule {current.get('name', '?')}: {exc}") from exc
+            raise RuleValidationError(
+                f"{source}: rule {current.get('name', '?')}: {exc}"
+            ) from exc
         current = None
         section = None
         condition_lines = []
@@ -170,7 +174,9 @@ def parse_ruleset(text: str, *, source: str = "<string>") -> tuple[RuleDefinitio
         header = _RULE_HEADER_RE.match(line)
         if header:
             if current is not None:
-                raise RuleParseError(f"{source}:{line_no}: nested rule '{header.group(1)}' before previous rule closed")
+                raise RuleParseError(
+                    f"{source}:{line_no}: nested rule '{header.group(1)}' before previous rule closed"
+                )
             current = {
                 "name": header.group(1),
                 "meta": {},
@@ -183,7 +189,9 @@ def parse_ruleset(text: str, *, source: str = "<string>") -> tuple[RuleDefinitio
             continue
 
         if current is None:
-            raise RuleParseError(f"{source}:{line_no}: expected 'rule <Name> {{', got: {line!r}")
+            raise RuleParseError(
+                f"{source}:{line_no}: expected 'rule <Name> {{', got: {line!r}"
+            )
 
         if line == "}":
             flush_rule(line_no)
@@ -196,11 +204,15 @@ def parse_ruleset(text: str, *, source: str = "<string>") -> tuple[RuleDefinitio
             if section == "condition":
                 condition_lines = [trailing] if trailing else []
             elif trailing:
-                raise RuleParseError(f"{source}:{line_no}: '{section}:' header should not carry inline content")
+                raise RuleParseError(
+                    f"{source}:{line_no}: '{section}:' header should not carry inline content"
+                )
             continue
 
         if section is None:
-            raise RuleParseError(f"{source}:{line_no}: entry outside any section: {line!r}")
+            raise RuleParseError(
+                f"{source}:{line_no}: entry outside any section: {line!r}"
+            )
 
         if section == "condition":
             condition_lines.append(line)
@@ -209,13 +221,17 @@ def parse_ruleset(text: str, *, source: str = "<string>") -> tuple[RuleDefinitio
         if section == "meta":
             entry = _META_ENTRY_RE.match(line)
             if not entry:
-                raise RuleParseError(f"{source}:{line_no}: meta entry must be 'key = value', got: {line!r}")
+                raise RuleParseError(
+                    f"{source}:{line_no}: meta entry must be 'key = value', got: {line!r}"
+                )
             current["meta"][entry.group(1)] = _interpret_meta_value(entry.group(2))
             continue
 
         entry = _TERM_ENTRY_RE.match(line)
         if not entry:
-            raise RuleParseError(f"{source}:{line_no}: {section} entry must be '$name = ...', got: {line!r}")
+            raise RuleParseError(
+                f"{source}:{line_no}: {section} entry must be '$name = ...', got: {line!r}"
+            )
         name, rhs = entry.group(1), entry.group(2)
         if section == "patterns":
             current["patterns"].append(_parse_pattern_rhs(name, rhs))
@@ -225,7 +241,9 @@ def parse_ruleset(text: str, *, source: str = "<string>") -> tuple[RuleDefinitio
             current["judge"].append(_parse_scored_rhs(name, rhs, key="prompt"))
 
     if current is not None:
-        raise RuleParseError(f"{source}: rule '{current.get('name', '?')}' is missing its closing '}}'")
+        raise RuleParseError(
+            f"{source}: rule '{current.get('name', '?')}' is missing its closing '}}'"
+        )
     if not rules:
         raise RuleParseError(f"{source}: no rules found")
     return tuple(rules)
@@ -251,9 +269,13 @@ def load_rules(root: Path | str) -> tuple[RuleDefinition, ...]:
     for path in paths:
         for rule in load_rule_file(path):
             if rule.id in ids:
-                raise RuleValidationError(f"Duplicate rule id {rule.id} in {path} (also in {ids[rule.id]})")
+                raise RuleValidationError(
+                    f"Duplicate rule id {rule.id} in {path} (also in {ids[rule.id]})"
+                )
             if rule.name in names:
-                raise RuleValidationError(f"Duplicate rule name {rule.name} in {path} (also in {names[rule.name]})")
+                raise RuleValidationError(
+                    f"Duplicate rule name {rule.name} in {path} (also in {names[rule.name]})"
+                )
             ids[rule.id] = str(path)
             names[rule.name] = str(path)
             rules.append(rule)

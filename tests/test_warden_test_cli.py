@@ -43,18 +43,29 @@ def test_warden_test_writes_jsonl_and_csv(tmp_path):
     jsonl = tmp_path / "out.jsonl"
     csv_path = tmp_path / "out.csv"
 
-    code = main([
-        "warden", "test",
-        "--input", str(corpus),
-        "--format", "json",
-        "--jsonl", str(jsonl),
-        "--csv", str(csv_path),
-    ])
+    code = main(
+        [
+            "warden",
+            "test",
+            "--input",
+            str(corpus),
+            "--format",
+            "json",
+            "--jsonl",
+            str(jsonl),
+            "--csv",
+            str(csv_path),
+        ]
+    )
 
     assert code == 0
-    jsonl_rows = [json.loads(line) for line in jsonl.read_text(encoding="utf-8").splitlines()]
+    jsonl_rows = [
+        json.loads(line) for line in jsonl.read_text(encoding="utf-8").splitlines()
+    ]
     assert len(jsonl_rows) == 3
-    assert {"attack_type", "detail", "expected", "actual", "pass", "stacks"} <= set(jsonl_rows[0])
+    assert {"attack_type", "detail", "expected", "actual", "pass", "stacks"} <= set(
+        jsonl_rows[0]
+    )
     csv_lines = csv_path.read_text(encoding="utf-8").splitlines()
     assert len(csv_lines) == 4  # header + 3 rows
     assert csv_lines[0].startswith("attack_type,detail,expected,actual,pass")
@@ -62,7 +73,9 @@ def test_warden_test_writes_jsonl_and_csv(tmp_path):
 
 def test_warden_test_exit_code_1_when_a_case_fails(tmp_path, capsys):
     # benign prompt labelled as block on the yara_rules oracle -> mismatch
-    corpus = _write(tmp_path, 'cases p {\n    "what is the weather in Paris?" -> block\n}')
+    corpus = _write(
+        tmp_path, 'cases p {\n    "what is the weather in Paris?" -> block\n}'
+    )
 
     code = main(["warden", "test", "--input", str(corpus), "--format", "json"])
 

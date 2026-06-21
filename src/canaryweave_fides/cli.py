@@ -714,6 +714,547 @@ def _warden_test(args: argparse.Namespace) -> int:
     return 0 if summary["failed"] == 0 else 1
 
 
+def _bench_coverage(args: argparse.Namespace) -> int:
+    """Run coverage benchmark against external attack datasets."""
+    from .adapters.benchmarks import (
+        load_asb_dataset,
+        load_mcpsecbench_dataset,
+        cases_to_facts,
+    )
+
+    # Load dataset
+    if args.dataset == "asb":
+        cases = load_asb_dataset(args.path)
+    elif args.dataset == "mcp":
+        cases = load_mcpsecbench_dataset(args.path)
+    else:
+        # Auto-detect from extension/content
+        text = args.path.read_text(encoding="utf-8")
+        if text.strip().startswith("["):
+            cases = load_mcpsecbench_dataset(args.path)
+        else:
+            cases = load_asb_dataset(args.path)
+
+    if args.max_cases:
+        cases = cases[: args.max_cases]
+
+    # Evaluate through all stacks
+    facts_list = cases_to_facts(cases)
+    results_by_category: dict[str, dict[str, int]] = {}
+    total_blocked = 0
+    total_cases = len(facts_list)
+    missed: list[dict[str, Any]] = []
+    rule_fire_counts: dict[str, int] = {}
+    fides_catches = 0
+    warden_only_blocked = 0
+
+    # Determine stack and judge
+    use_fides = getattr(args, "fides", False) or getattr(args, "fides_live", False)
+    fides_judge = None
+    if use_fides:
+        if getattr(args, "fides_live", False):
+            config = JudgeProviderConfig(
+                provider="copilot_sdk", provider_calls_enabled=True
+            )
+            fides_judge = build_fides_judge("copilot_sdk", provider_config=config)
+        else:
+            all_case_ids = [cases[i]["case_id"] for i in range(len(facts_list))]
+            fides_judge = StaticFidesJudge(
+                {
+                    cid: FidesJudgeResult(
+                        verdict="unsafe", reason_codes=("fides.bench.coverage",)
+                    )
+                    for cid in all_case_ids
+                }
+            )
+
+    fides_latencies: list[float] = []
+    fides_provider_calls = 0
+    detail_rows: list[dict[str, Any]] = []
+
+    for i, (facts, expected_block) in enumerate(facts_list):
+        # Always run WARDEN first
+        warden_decision = evaluate_stack(facts, StackName.YARA_RULES)
+        warden_blocked = warden_decision.decision != Decision.ALLOW
+        if warden_blocked:
+            warden_only_blocked += 1
+
+        # Track rule fires
+        for rule_id in warden_decision.rule_ids:
+            rule_fire_counts[rule_id] = rule_fire_counts.get(rule_id, 0) + 1
+
+        # Run FIDES if enabled
+        fides_decision = None
+        if use_fides:
+            fides_decision = evaluate_stack(
+                facts, StackName.RULES_PLUS_FIDES, fides_judge=fides_judge
+            )
+            is_blocked = fides_decision.decision != Decision.ALLOW
+            if is_blocked and not warden_blocked:
+                fides_catches += 1
+            if fides_decision.latency_ms is not None:
+                fides_latencies.append(fides_decision.latency_ms)
+            fides_provider_calls += fides_decision.provider_calls
+        else:
+            is_blocked = warden_blocked
+
+        category = cases[i]["attack_category"]
+        if category not in results_by_category:
+            results_by_category[category] = {"total": 0, "blocked": 0, "missed": 0}
+        results_by_category[category]["total"] += 1
+
+        if is_blocked:
+            results_by_category[category]["blocked"] += 1
+            total_blocked += 1
+        else:
+            results_by_category[category]["missed"] += 1
+            if len(missed) < 20:
+                missed.append(
+                    {
+                        "case_id": cases[i]["case_id"],
+                        "category": category,
+                        "text": cases[i]["text"][:100],
+                    }
+                )
+
+        # Collect per-case detail
+        detail_rows.append(
+            {
+                "case_id": cases[i]["case_id"],
+                "category": category,
+                "text": cases[i]["text"][:200],
+                "expected_block": expected_block,
+                "warden_decision": warden_decision.decision.value,
+                "warden_rule_ids": list(warden_decision.rule_ids),
+                "warden_reason_codes": list(warden_decision.reason_codes),
+                "fides_decision": (
+                    fides_decision.decision.value if fides_decision else None
+                ),
+                "fides_verdict": (
+                    fides_decision.fides_verdict.value if fides_decision else None
+                ),
+                "fides_blocked_by": (
+                    fides_decision.blocked_by.value if fides_decision else None
+                ),
+                "fides_latency_ms": (
+                    fides_decision.latency_ms if fides_decision else None
+                ),
+                "final_blocked": is_blocked,
+                "correct": is_blocked == expected_block,
+            }
+        )
+
+    # Build report
+    overall_catch_rate = total_blocked / total_cases if total_cases else 0
+    overall_asr = 1.0 - overall_catch_rate
+    warden_catch_rate = warden_only_blocked / total_cases if total_cases else 0
+    top_rules = sorted(rule_fire_counts.items(), key=lambda x: -x[1])[:10]
+
+    report = {
+        "dataset": args.dataset,
+        "total_cases": total_cases,
+        "stack": "rules_plus_fides" if use_fides else "yara_rules",
+        "warden_blocked": warden_only_blocked,
+        "warden_catch_rate": round(warden_catch_rate, 4),
+        "fides_incremental_catches": fides_catches if use_fides else None,
+        "fides_provider_calls": fides_provider_calls if use_fides else None,
+        "fides_avg_latency_ms": (
+            round(sum(fides_latencies) / len(fides_latencies), 1)
+            if fides_latencies
+            else None
+        ),
+        "fides_total_latency_ms": (
+            round(sum(fides_latencies), 1) if fides_latencies else None
+        ),
+        "total_blocked": total_blocked,
+        "total_missed": total_cases - total_blocked,
+        "catch_rate": round(overall_catch_rate, 4),
+        "asr": round(overall_asr, 4),
+        "top_firing_rules": [{"rule_id": r, "count": c} for r, c in top_rules],
+        "per_category": {
+            cat: {
+                "total": v["total"],
+                "blocked": v["blocked"],
+                "catch_rate": round(v["blocked"] / v["total"], 4) if v["total"] else 0,
+            }
+            for cat, v in sorted(results_by_category.items())
+        },
+        "sample_missed": missed[:10],
+    }
+
+    # Write per-case detail JSONL if requested
+    detail_path = getattr(args, "detail", None)
+    if detail_path:
+        detail_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(detail_path, "w", encoding="utf-8") as f:
+            for row in detail_rows:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    if args.json:
+        output_text = json.dumps(report, indent=2)
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(output_text + "\n", encoding="utf-8")
+        print(output_text)
+    else:
+        from rich.console import Console as RichConsole
+        from rich.table import Table as RichTable
+        from rich.text import Text as RichText
+        from rich.panel import Panel as RichPanel
+        from rich import box as rich_box
+
+        console = RichConsole()
+
+        # Summary panel
+        summary = RichTable.grid(padding=(0, 2))
+        summary.add_column(style="bold cyan", no_wrap=True)
+        summary.add_column(style="white")
+        summary.add_row("Dataset", args.dataset)
+        summary.add_row("Stack", "rules_plus_fides" if use_fides else "yara_rules")
+        summary.add_row("Total Cases", str(total_cases))
+        summary.add_row(
+            "WARDEN Blocked", RichText(str(warden_only_blocked), style="bold green")
+        )
+        if use_fides:
+            summary.add_row(
+                "FIDES Incremental", RichText(str(fides_catches), style="bold yellow")
+            )
+            summary.add_row("Provider Calls", str(fides_provider_calls))
+            if fides_latencies:
+                avg_lat = sum(fides_latencies) / len(fides_latencies)
+                total_lat = sum(fides_latencies)
+                summary.add_row("Avg Latency", f"{avg_lat:.0f}ms")
+                summary.add_row("Total Latency", f"{total_lat / 1000:.1f}s")
+        summary.add_row(
+            "Total Blocked", RichText(str(total_blocked), style="bold green")
+        )
+        summary.add_row(
+            "Missed", RichText(str(total_cases - total_blocked), style="bold red")
+        )
+        summary.add_row(
+            "Catch Rate",
+            RichText(
+                f"{overall_catch_rate * 100:.1f}%",
+                style=(
+                    "bold green"
+                    if overall_catch_rate > 0.7
+                    else "bold yellow" if overall_catch_rate > 0.4 else "bold red"
+                ),
+            ),
+        )
+        summary.add_row(
+            "ASR",
+            RichText(
+                f"{overall_asr * 100:.1f}%",
+                style="bold red" if overall_asr > 0.3 else "bold yellow",
+            ),
+        )
+        if use_fides:
+            summary.add_row(
+                "WARDEN-only Rate",
+                RichText(f"{warden_catch_rate * 100:.1f}%", style="dim"),
+            )
+        console.print(
+            RichPanel(
+                summary,
+                title="WARDEN Coverage Report",
+                box=rich_box.ROUNDED,
+                border_style="cyan",
+            )
+        )
+
+        # Per-category table
+        cat_table = RichTable(title="Per-Category Coverage", box=rich_box.SIMPLE_HEAVY)
+        cat_table.add_column("Category", style="white")
+        cat_table.add_column("Total", justify="right")
+        cat_table.add_column("Blocked", justify="right", style="green")
+        cat_table.add_column("Catch Rate", justify="right")
+        for cat, v in sorted(results_by_category.items()):
+            rate = v["blocked"] / v["total"] if v["total"] else 0
+            rate_style = (
+                "bold green" if rate > 0.7 else "yellow" if rate > 0.4 else "bold red"
+            )
+            cat_table.add_row(
+                cat,
+                str(v["total"]),
+                str(v["blocked"]),
+                RichText(f"{rate * 100:.0f}%", style=rate_style),
+            )
+        console.print(cat_table)
+
+        # Top firing rules
+        if top_rules:
+            rules_table = RichTable(title="Top Firing Rules", box=rich_box.SIMPLE_HEAVY)
+            rules_table.add_column("Rule ID", style="cyan")
+            rules_table.add_column("Fires", justify="right", style="green")
+            for rule_id, count in top_rules[:8]:
+                rules_table.add_row(rule_id, str(count))
+            console.print(rules_table)
+
+        # Missed samples
+        if missed:
+            miss_table = RichTable(title="Sample Missed Attacks", box=rich_box.SIMPLE)
+            miss_table.add_column("ID", style="dim")
+            miss_table.add_column("Category")
+            miss_table.add_column("Text", max_width=60)
+            for m in missed[:10]:
+                miss_table.add_row(m["case_id"], m["category"], m["text"])
+            console.print(miss_table)
+
+        # Per-case detail table
+        detail_table = RichTable(title="Per-Case Decision Detail", box=rich_box.SIMPLE)
+        detail_table.add_column("#", style="dim", width=4)
+        detail_table.add_column("Text", max_width=45)
+        detail_table.add_column("WARDEN", justify="center")
+        detail_table.add_column("Rules", max_width=25)
+        detail_table.add_column("FIDES", justify="center")
+        detail_table.add_column("Final", justify="center")
+        for row in detail_rows[:30]:
+            w_style = "green" if row["warden_decision"] != "allow" else "red"
+            f_val = row.get("fides_verdict") or "-"
+            f_style = (
+                "green"
+                if f_val in ("not_called", "unsafe")
+                else "yellow" if f_val == "uncertain" else "dim"
+            )
+            final_style = "bold green" if row["final_blocked"] else "bold red"
+            detail_table.add_row(
+                (
+                    row["case_id"].split("-")[-1]
+                    if "-" in row["case_id"]
+                    else row["case_id"][-4:]
+                ),
+                row["text"][:45],
+                RichText(row["warden_decision"].upper(), style=w_style),
+                ", ".join(row["warden_rule_ids"][:2]) or "-",
+                RichText(f_val.upper(), style=f_style),
+                RichText(
+                    "BLOCKED" if row["final_blocked"] else "MISSED", style=final_style
+                ),
+            )
+        console.print(detail_table)
+
+    return 0
+
+
+def _crawl(args: argparse.Namespace) -> int:
+    """Crawl MCP endpoint, generate adversarial attacks, evaluate through WARDEN."""
+    import asyncio as _asyncio
+
+    from .mcp_client import crawl_endpoint
+    from .adversarial_gen import generate_attacks
+
+    endpoints: list[dict[str, Any]] = []
+
+    if args.endpoint:
+        # Parse command string into list
+        cmd = args.endpoint.split()
+        endpoints.append({"name": cmd[0].split("/")[-1], "command": cmd})
+    elif args.config:
+        import yaml
+
+        data = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+        for ep in data.get("endpoints", []):
+            if ep.get("type", "local") == "local" and ep.get("command"):
+                endpoints.append(ep)
+    else:
+        # Default config
+        config_path = Path("conf/mcp_endpoints.yaml")
+        if config_path.exists():
+            import yaml
+
+            data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+            for ep in data.get("endpoints", []):
+                if ep.get("type", "local") == "local" and ep.get("command"):
+                    endpoints.append(ep)
+
+    if not endpoints:
+        print("No endpoints configured. Use --endpoint or --config.")
+        return 1
+
+    all_detail: list[dict[str, Any]] = []
+
+    for ep in endpoints:
+        name = ep.get("name", "unknown")
+        cmd = ep["command"]
+        env = ep.get("env")
+
+        print(f"Crawling {name}: {' '.join(cmd)}")
+        result = _asyncio.run(crawl_endpoint(cmd, server_name=name, env=env))
+
+        if result.error:
+            print(f"  Error: {result.error}")
+            continue
+
+        print(
+            f"  Discovered {len(result.tools)} tools, {len(result.resources)} resources"
+        )
+
+        # Generate adversarial attacks
+        attacks = generate_attacks(result.tools)
+        print(f"  Generated {len(attacks)} attack prompts")
+
+        # Evaluate each through WARDEN
+        use_fides = getattr(args, "fides", False) or getattr(args, "fides_live", False)
+        fides_judge_obj = None
+        if use_fides:
+            if getattr(args, "fides_live", False):
+                config = JudgeProviderConfig(
+                    provider="copilot_sdk", provider_calls_enabled=True
+                )
+                fides_judge_obj = build_fides_judge(
+                    "copilot_sdk", provider_config=config
+                )
+            else:
+                ids = [f"crawl.{name}.{i}" for i in range(len(attacks))]
+                fides_judge_obj = StaticFidesJudge(
+                    {
+                        cid: FidesJudgeResult(
+                            verdict="unsafe",
+                            reason_codes=("fides.crawl",),
+                        )
+                        for cid in ids
+                    }
+                )
+
+        stack = StackName.RULES_PLUS_FIDES if use_fides else StackName.YARA_RULES
+        blocked = 0
+        per_tool: dict[str, dict[str, int]] = {}
+
+        for i, attack in enumerate(attacks):
+            facts = _facts_from_prompt(
+                attack.prompt,
+                case_id=f"crawl.{name}.{i}",
+                origin=attack.origin,
+                trust=attack.trust,
+            )
+            decision = evaluate_stack(facts, stack, fides_judge=fides_judge_obj)
+            is_blocked = decision.decision != Decision.ALLOW
+
+            if attack.tool_name not in per_tool:
+                per_tool[attack.tool_name] = {"total": 0, "blocked": 0}
+            per_tool[attack.tool_name]["total"] += 1
+            if is_blocked:
+                per_tool[attack.tool_name]["blocked"] += 1
+                blocked += 1
+
+            all_detail.append(
+                {
+                    "server": name,
+                    "tool": attack.tool_name,
+                    "attack_type": attack.attack_type,
+                    "prompt": attack.prompt[:200],
+                    "decision": decision.decision.value,
+                    "rule_ids": list(decision.rule_ids),
+                    "blocked": is_blocked,
+                }
+            )
+
+        # Output
+        total = len(attacks)
+        catch_rate = blocked / total if total else 0
+
+        if getattr(args, "json", False):
+            print(
+                json.dumps(
+                    {
+                        "server": name,
+                        "tools": len(result.tools),
+                        "attacks": total,
+                        "blocked": blocked,
+                        "catch_rate": round(catch_rate, 4),
+                        "per_tool": per_tool,
+                    },
+                    indent=2,
+                )
+            )
+        else:
+            from rich.console import Console as RC
+            from rich.table import Table as RT
+            from rich.text import Text as RX
+            from rich.panel import Panel as RP
+            from rich import box as rb
+
+            console = RC()
+            s = RT.grid(padding=(0, 2))
+            s.add_column(style="bold cyan", no_wrap=True)
+            s.add_column(style="white")
+            s.add_row("Server", name)
+            s.add_row("Tools Discovered", str(len(result.tools)))
+            s.add_row("Attacks Generated", str(total))
+            s.add_row("Blocked", RX(str(blocked), style="bold green"))
+            s.add_row("Missed", RX(str(total - blocked), style="bold red"))
+            s.add_row(
+                "Coverage",
+                RX(
+                    f"{catch_rate * 100:.1f}%",
+                    style=(
+                        "bold green"
+                        if catch_rate > 0.7
+                        else "yellow" if catch_rate > 0.4 else "bold red"
+                    ),
+                ),
+            )
+            console.print(
+                RP(
+                    s,
+                    title=f"Endpoint Scan: {name}",
+                    box=rb.ROUNDED,
+                    border_style="cyan",
+                )
+            )
+
+            t = RT(title="Per-Tool Coverage", box=rb.SIMPLE_HEAVY)
+            t.add_column("Tool", style="white")
+            t.add_column("Attacks", justify="right")
+            t.add_column("Blocked", justify="right", style="green")
+            t.add_column("Rate", justify="right")
+            for tool_name, counts in sorted(per_tool.items()):
+                rate = counts["blocked"] / counts["total"] if counts["total"] else 0
+                rs = (
+                    "bold green"
+                    if rate > 0.7
+                    else "yellow" if rate > 0.4 else "bold red"
+                )
+                t.add_row(
+                    tool_name,
+                    str(counts["total"]),
+                    str(counts["blocked"]),
+                    RX(f"{rate * 100:.0f}%", style=rs),
+                )
+            console.print(t)
+
+            # Per-case detail table
+            dt = RT(title="Per-Case Decision Detail", box=rb.SIMPLE)
+            dt.add_column("#", style="dim", width=4)
+            dt.add_column("Tool", max_width=22)
+            dt.add_column("Attack Type", max_width=18)
+            dt.add_column("Prompt", max_width=40)
+            dt.add_column("Decision", justify="center")
+            dt.add_column("Rules", max_width=22)
+            for idx, row in enumerate(all_detail[:30]):
+                d_style = "green" if row["blocked"] else "bold red"
+                dt.add_row(
+                    str(idx),
+                    row["tool"],
+                    row["attack_type"],
+                    row["prompt"][:40],
+                    RX("BLOCKED" if row["blocked"] else "MISSED", style=d_style),
+                    ", ".join(row["rule_ids"][:2]) or "-",
+                )
+            console.print(dt)
+
+    # Write detail JSONL
+    detail_path = getattr(args, "detail", None)
+    if detail_path:
+        detail_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(detail_path, "w", encoding="utf-8") as f:
+            for row in all_detail:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    return 0
+
+
 def _scan(args: argparse.Namespace) -> int:
     """Simplified scan command with sensible defaults."""
     trust = "trusted" if args.trusted else "untrusted"
@@ -987,6 +1528,34 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument("--max-cases", type=int, default=None)
     scan.add_argument("--output", type=Path, default=None)
 
+    # Coverage sub-command for external benchmark datasets
+    coverage = bench_sub.add_parser(
+        "coverage", help="Run coverage against ASB/MCPSecBench datasets"
+    )
+    coverage.add_argument(
+        "--dataset", required=True, choices=["asb", "mcp", "auto"], help="Dataset type"
+    )
+    coverage.add_argument(
+        "--path", required=True, type=Path, help="Path to dataset file"
+    )
+    coverage.add_argument("--max-cases", type=int, default=None)
+    coverage.add_argument(
+        "--fides", action="store_true", help="Enable FIDES judge (test double)"
+    )
+    coverage.add_argument(
+        "--fides-live",
+        action="store_true",
+        help="Enable FIDES judge (real Copilot SDK)",
+    )
+    coverage.add_argument(
+        "--detail",
+        type=Path,
+        default=None,
+        help="Write per-case JSONL artifact with full decision chain",
+    )
+    coverage.add_argument("--json", action="store_true", help="JSON output")
+    coverage.add_argument("--output", type=Path, default=None)
+
     eval_parser = subparsers.add_parser(
         "eval", help="Run WARDEN/FIDES pre-context gate evaluation"
     )
@@ -1090,7 +1659,42 @@ def main(argv: list[str] | None = None) -> int:
     )
     scan_parser.add_argument("--output", type=Path, default=None)
 
+    # --- Crawl command ---
+    crawl_parser = subparsers.add_parser(
+        "crawl",
+        help="Crawl MCP endpoint: discover tools, generate attacks, evaluate",
+    )
+    crawl_parser.add_argument(
+        "--endpoint",
+        default=None,
+        help='MCP server command, e.g. "npx @modelcontextprotocol/server-filesystem /tmp"',
+    )
+    crawl_parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="YAML config with endpoint list (default: conf/mcp_endpoints.yaml)",
+    )
+    crawl_parser.add_argument(
+        "--fides", action="store_true", help="Run FIDES judge on misses (test double)"
+    )
+    crawl_parser.add_argument(
+        "--fides-live",
+        action="store_true",
+        help="Run FIDES judge on misses (real Copilot SDK)",
+    )
+    crawl_parser.add_argument("--json", action="store_true", help="JSON output")
+    crawl_parser.add_argument("--output", type=Path, default=None)
+    crawl_parser.add_argument(
+        "--detail",
+        type=Path,
+        default=None,
+        help="Write per-attack JSONL detail",
+    )
+
     args = parser.parse_args(effective_argv)
+    if args.command == "crawl":
+        return _crawl(args)
     if args.command == "scan":
         return _scan(args)
     if args.command == "provider":
@@ -1108,6 +1712,8 @@ def main(argv: list[str] | None = None) -> int:
         return _judge_one(args)
     if args.command == "bench" and args.bench_command == "scan":
         return _bench_scan(args)
+    if args.command == "bench" and args.bench_command == "coverage":
+        return _bench_coverage(args)
     if args.command == "eval":
         from .runner import EvaluationRunConfig, run_evaluation
 

@@ -25,5 +25,6 @@ class ProviderJudgeResponse:
 class JudgeProvider(Protocol):
     config: JudgeProviderConfig
 
-    def judge(self, prompt: str, *, case_id: str, request_id: str) -> ProviderJudgeResponse:
-        ...
+    def judge(
+        self, prompt: str, *, case_id: str, request_id: str
+    ) -> ProviderJudgeResponse: ...

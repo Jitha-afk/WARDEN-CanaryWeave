@@ -7,7 +7,6 @@ from canaryweave_fides.rule_engine import RuleEngine
 from canaryweave_fides.rule_loader import load_rules, parse_ruleset
 from canaryweave_fides.rule_schema import RuleValidationError
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -24,9 +23,15 @@ _SIG_TEMPLATE = """rule {name} {{
 """
 
 
-def _signature(patterns, condition, *, name="SigRule", rule_id="cwfr-test-0001", severity="high"):
+def _signature(
+    patterns, condition, *, name="SigRule", rule_id="cwfr-test-0001", severity="high"
+):
     text = _SIG_TEMPLATE.format(
-        name=name, rule_id=rule_id, severity=severity, patterns=patterns, condition=condition
+        name=name,
+        rule_id=rule_id,
+        severity=severity,
+        patterns=patterns,
+        condition=condition,
     )
     return parse_ruleset(text)
 

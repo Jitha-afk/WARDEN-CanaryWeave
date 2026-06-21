@@ -14,7 +14,6 @@ from canaryweave_fides.gate import _default_rule_engine
 from canaryweave_fides.reporting import _default_rule_ids
 from canaryweave_fides.rule_loader import load_rules
 
-
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_RULE_COUNT = 55
 
@@ -84,7 +83,9 @@ def test_root_gitignore_protects_private_reverse_engineering_outputs():
         assert pattern in ignore
 
 
-@pytest.mark.skipif(sys.version_info < (3, 11), reason="build frontend dependency is Python 3.11+")
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="build frontend dependency is Python 3.11+"
+)
 def test_built_wheel_contains_packaged_rules_configs_and_data(tmp_path):
     build_dir = tmp_path / "dist"
     subprocess.run(
@@ -113,7 +114,11 @@ def test_built_wheel_contains_packaged_rules_configs_and_data(tmp_path):
     with zipfile.ZipFile(wheel) as archive:
         names = set(archive.namelist())
 
-    packaged_rules = [name for name in names if name.startswith("canaryweave_fides/assets/rules/") and name.endswith(".war")]
+    packaged_rules = [
+        name
+        for name in names
+        if name.startswith("canaryweave_fides/assets/rules/") and name.endswith(".war")
+    ]
     expected_rule_files = len(list((ROOT / "rules").rglob("*.war")))
     assert len(packaged_rules) == expected_rule_files
     assert "canaryweave_fides/assets/conf/default.yaml" in names

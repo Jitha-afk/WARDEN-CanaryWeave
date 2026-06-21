@@ -65,8 +65,7 @@ def tcr_at_k(traces: Sequence[TaskTrace], k: int) -> float:
     if not traces:
         return 0.0
     completed_within_budget = sum(
-        1 for trace in traces
-        if trace.completed and trace.policy_violations <= k
+        1 for trace in traces if trace.completed and trace.policy_violations <= k
     )
     return completed_within_budget / len(traces)
 
