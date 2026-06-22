@@ -44,6 +44,7 @@ once in [`CONTEXT.md`](../CONTEXT.md).
 |---|---|
 | [Running evaluations](guides/running_evals.md) | Running smoke, `warden test`, and full dataset evals. |
 | [Datasets](guides/datasets.md) | Dataset adapters and the public/private data contract. |
+| [Dataset schema](guides/DATASET_SCHEMA.md) | The WARDEN benchmark dataset schema (MCP request format). |
 | [MCP setup](guides/MCP_SETUP.md) | MCP endpoint config, trust model, and crawling. |
 | [Case study](CASE_STUDY.md) | Personas, workflows, and empirical results. |
 
