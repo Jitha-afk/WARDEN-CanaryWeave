@@ -90,6 +90,7 @@ docs/
 ├── guides/
 │   ├── BUILD_AND_RUN.md      # Install, run, test, build commands
 │   ├── MCP_SETUP.md          # MCP endpoint config, trust model, crawling
+│   ├── DATASET_SCHEMA.md     # Benchmark dataset schema (WARDEN standard)
 │   ├── rule_authoring.md     # How to write .war rules
 │   ├── running_evals.md      # Running multi-dataset evaluations
 │   ├── datasets.md           # Dataset adapter configuration

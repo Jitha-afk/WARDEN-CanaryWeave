@@ -718,6 +718,7 @@ def _bench_coverage(args: argparse.Namespace) -> int:
     """Run coverage benchmark against external attack datasets."""
     from .adapters.benchmarks import (
         load_asb_dataset,
+        load_auto_dataset,
         load_mcpsecbench_dataset,
         cases_to_facts,
     )
@@ -728,12 +729,7 @@ def _bench_coverage(args: argparse.Namespace) -> int:
     elif args.dataset == "mcp":
         cases = load_mcpsecbench_dataset(args.path)
     else:
-        # Auto-detect from extension/content
-        text = args.path.read_text(encoding="utf-8")
-        if text.strip().startswith("["):
-            cases = load_mcpsecbench_dataset(args.path)
-        else:
-            cases = load_asb_dataset(args.path)
+        cases = load_auto_dataset(args.path)
 
     if args.max_cases:
         cases = cases[: args.max_cases]

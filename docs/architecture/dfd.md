@@ -209,3 +209,60 @@ These are data-flow consequences of the ADR 0003 refactor, surfaced for honesty
 - [ADR 0003](../adr/0003-collapse-to-facts-and-cases.md) — the refactor of record.
 - [`automation/mitre/README.md`](../../automation/mitre/README.md) — the MITRE
   enrichment data flow (separate offline pipeline).
+
+---
+
+## DFD: FIDES Variable Memory Gate
+
+```mermaid
+flowchart TD
+    A[Tool Result<br>untrusted content] --> B{integrity.leq TRUSTED?}
+    B -->|YES| C[Pass Through<br>raw content visible to planner]
+    B -->|NO| D[VariableStore.store]
+    D --> E["$VAR_n handle"]
+    E --> F["Planner sees:<br>[$VAR_1: tool_output,<br>integrity=UNTRUSTED,<br>length=42 chars]"]
+    E --> G[Only Quarantined LLM<br>can read raw content]
+```
+
+## DFD: warden crawl (Schema-Aware Fuzzing)
+
+```mermaid
+flowchart TD
+    A["warden crawl --endpoint '...'"] --> B[MCP Client connects<br>stdio]
+    B --> C["initialize()"]
+    C --> D["tools/list"]
+    D --> E["Discovered tools:<br>read_file, write_file, ..."]
+    E --> F{For each tool}
+    F --> G["Path params?<br>→ path traversal attacks"]
+    F --> H["String params?<br>→ injection attacks"]
+    F --> I["Any tool<br>→ escalation, social eng"]
+    F --> J["Description<br>→ poisoning check"]
+    G & H & I & J --> K[WARDEN+FIDES Gate]
+    K -->|blocked| L["✓ Caught"]
+    K -->|allowed| M["✗ Missed"]
+    L & M --> N[Per-Tool Coverage Report]
+```
+
+## DFD: warden bench coverage (Dataset Benchmark)
+
+```mermaid
+flowchart TD
+    subgraph "Data Sources"
+        A1[ASB<br>400 attacks<br>10 agents]
+        A2[MCPSecBench<br>510 attacks<br>MCP JSON-RPC]
+        A3[Custom JSONL<br>auto-detect]
+    end
+
+    A1 --> B1["load_asb_dataset()<br>agent → policy<br>tool → capability"]
+    A2 --> B2["load_mcpsecbench()<br>method → origin<br>params → tool"]
+    A3 --> B3["load_auto_dataset()<br>format detection"]
+
+    B1 & B2 & B3 --> C["cases_to_facts()<br>enrich with tool/capability context"]
+    C --> D{For each case}
+    D --> E[WARDEN Rules<br>55 .war rules]
+    E -->|hit| F[BLOCKED]
+    E -->|miss + --fides| G[FIDES Judge]
+    G -->|unsafe| F
+    G -->|safe| H[MISSED]
+    F & H --> I["Coverage Report<br>ASR, catch rate, top rules<br>per-category + per-case detail"]
+```
