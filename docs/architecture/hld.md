@@ -240,8 +240,122 @@ These are documented intentionally so readers can distinguish "by design" from
 
 - [Low-Level Design](lld.md) — modules, data structures, algorithms.
 - [Data Flow Diagrams](dfd.md) — Level 0–2 data movement.
-- [`design/query_llm_gate.md`](../../design/query_llm_gate.md) — the `query_llm` contract.
-- [`design/rule_schema.md`](../../design/rule_schema.md) — the `.war` DSL schema.
-- [`design/multi_dataset_harness_architecture.md`](../../design/multi_dataset_harness_architecture.md) — harness planning draft.
+- [Mathematical Foundations](MATH.md) — lattice theory, similarity scoring, metrics.
 - [ADR 0003](../adr/0003-collapse-to-facts-and-cases.md) — the refactor this design reflects.
+
+---
+
+## 11. FIDES Integration Components (Phase 2)
+
+```mermaid
+graph TB
+    subgraph "FIDES Architecture (arXiv:2505.23643)"
+        L[lattice.py<br>IntegrityLattice, ConfidentialityLattice<br>PowersetLattice, ProductLattice]
+        VS[variable_store.py<br>VariableStore, $VAR_n handles<br>store_if_untrusted]
+        F[fides.py<br>FidesIFCLayer<br>P-T: integrity.leq T<br>P-F: confidentiality.leq L]
+        AM[autonomy_metrics.py<br>hitl_load, tcr_at_k<br>autonomy_summary]
+    end
+
+    subgraph "MCP Security Testing"
+        MC[mcp_client.py<br>MCPStdioClient<br>connect, tools/list]
+        AG[adversarial_gen.py<br>Schema-aware fuzzer<br>per-param attack templates]
+        MS[mock_mcp_server.py<br>Dataset as MCP server]
+        BM[adapters/benchmarks.py<br>ASB + MCPSecBench loaders<br>agent-aware context]
+    end
+
+    subgraph "Copilot SDK"
+        CS[providers/copilot_sdk.py<br>SDK + REST fallback<br>judge + complete]
+    end
+
+    L --> F
+    VS --> F
+    F --> Gate[gate.py]
+    CS --> Gate
+    MC --> AG
+    AG --> Gate
+    BM --> Gate
+    MS --> MC
+```
+
+### Paper-to-Code Alignment
+
+| Paper Concept | Module | Key Function |
+|---|---|---|
+| Security Labels | `lattice.py` | `IntegrityLattice.leq()`, `ProductLattice.join()` |
+| Variable Memory | `variable_store.py` | `store_if_untrusted()`, `redacted_view()` |
+| Quarantined LLM | `providers/copilot_sdk.py` | `complete()`, `judge()` |
+| Trusted Action (P-T) | `fides.py` | `integrity.leq(TRUSTED)` |
+| Permitted Flow (P-F) | `fides.py` | `confidentiality.leq(PUBLIC)` |
+| PRUDENTIA Metrics | `autonomy_metrics.py` | `hitl_load()`, `tcr_at_k()` |
+
+## 12. MCP Security Testing
+
+```mermaid
+graph LR
+    subgraph "Data Sources"
+        ASB[ASB Dataset<br>400 attacks<br>10 agents]
+        MCP[MCPSecBench<br>510 attacks<br>MCP JSON-RPC]
+        REAL[Real MCP Server<br>npx server-fs]
+    end
+
+    subgraph "Adapters"
+        LA[load_asb_dataset<br>agent-aware]
+        LM[load_mcpsecbench<br>MCP context]
+        CR[warden crawl<br>schema fuzzing]
+    end
+
+    subgraph "WARDEN Gate"
+        W[WARDEN Rules<br>55 .war rules]
+        FI[FIDES IFC<br>lattice checks]
+        FJ[FIDES Judge<br>Copilot SDK]
+    end
+
+    ASB --> LA --> W
+    MCP --> LM --> W
+    REAL --> CR --> W
+    W -->|miss| FI -->|miss| FJ
+    W -->|hit| BLOCK[BLOCKED]
+    FJ -->|unsafe| BLOCK
+    FJ -->|safe| ALLOW[ALLOWED]
+```
+
+## 13. CLI Commands
+
+| Command | Purpose |
+|---|---|
+| `warden scan "prompt"` | Single prompt (rich output, IFC facts, variable gate) |
+| `warden bench coverage --dataset asb` | Benchmark against attack datasets |
+| `warden crawl --endpoint "..."` | Crawl MCP endpoint, generate attacks, evaluate |
+| `warden judge one --prompt "..."` | WARDEN + FIDES with full options |
 - [`CONTEXT.md`](../../CONTEXT.md) — the canonical glossary.
+
+---
+
+## 8. FIDES Integration Components (Phase 2)
+
+The following modules implement the FIDES architecture from arXiv:2505.23643:
+
+| Paper Concept | Module | Purpose |
+|---|---|---|
+| Security Labels | `lattice.py` | Formal IFC lattice: `IntegrityLattice {T,U}`, `ConfidentialityLattice {L,H}`, `PowersetLattice`, `ProductLattice` with `leq/join/meet` |
+| Variable Memory | `variable_store.py` | Selective hiding: untrusted content stored behind `\` handles |
+| Quarantined LLM | `providers/copilot_sdk.py` | Real Copilot SDK + REST fallback for judge and `complete()` |
+| PRUDENTIA Metrics | `autonomy_metrics.py` | `hitl_load()`, `tcr_at_k()`, `autonomy_summary()` |
+
+## 9. MCP Security Testing Components
+
+| Module | Purpose |
+|---|---|
+| `mcp_client.py` | Lightweight MCP stdio client: connect, `tools/list`, `resources/list` |
+| `adversarial_gen.py` | Schema-aware fuzzer: generates attack prompts per tool parameter type |
+| `mock_mcp_server.py` | Wraps attack datasets as MCP stdio servers for end-to-end testing |
+| `adapters/benchmarks.py` | Loaders for ASB (400 attacks) and MCPSecBench (510 attacks) with agent context |
+
+## 10. CLI Commands
+
+| Command | Purpose |
+|---|---|
+| `warden scan "prompt"` | Single prompt evaluation (rich output) |
+| `warden bench coverage --dataset asb` | Benchmark coverage against attack datasets |
+| `warden crawl --endpoint "..."` | Crawl MCP endpoint, generate attacks, evaluate |
+| `warden judge one --prompt "..."` | WARDEN + FIDES judge with full options |
