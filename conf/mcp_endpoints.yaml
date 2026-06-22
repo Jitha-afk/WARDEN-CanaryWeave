@@ -1,0 +1,36 @@
+# MCP Endpoint Configuration for WARDEN Crawling
+#
+# Define MCP servers to crawl and test. Each endpoint is connected,
+# tools are discovered via tools/list, and adversarial prompts are
+# generated and evaluated through the WARDEN+FIDES gate.
+#
+# Usage:
+#   warden crawl --config conf/mcp_endpoints.yaml
+#   warden crawl --endpoint "npx @modelcontextprotocol/server-filesystem /tmp"
+
+endpoints:
+  # Example: Local filesystem server
+  - name: filesystem
+    type: local
+    command: ["npx", "@modelcontextprotocol/server-filesystem", "/tmp"]
+    trust: untrusted
+
+  # Example: GitHub server (needs GITHUB_TOKEN)
+  # - name: github
+  #   type: local
+  #   command: ["npx", "@modelcontextprotocol/server-github"]
+  #   env:
+  #     GITHUB_TOKEN: "${GITHUB_TOKEN}"
+  #   trust: mixed
+
+  # Example: SSE server
+  # - name: custom-sse
+  #   type: sse
+  #   url: "http://localhost:3000/sse"
+  #   trust: untrusted
+
+  # Example: HTTP server
+  # - name: custom-http
+  #   type: http
+  #   url: "http://localhost:8080"
+  #   trust: untrusted

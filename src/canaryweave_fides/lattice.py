@@ -15,9 +15,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Generic, TypeVar
-
-T = TypeVar("T")
+from typing import Any
 
 
 class Lattice(ABC):
@@ -48,16 +46,13 @@ class Lattice(ABC):
         return other.leq(self)
 
     @abstractmethod
-    def __repr__(self) -> str:
-        ...
+    def __repr__(self) -> str: ...
 
     @abstractmethod
-    def __eq__(self, other: object) -> bool:
-        ...
+    def __eq__(self, other: object) -> bool: ...
 
     @abstractmethod
-    def __hash__(self) -> int:
-        ...
+    def __hash__(self) -> int: ...
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +279,7 @@ class ProductLattice(Lattice):
 # ---------------------------------------------------------------------------
 # Convenience: SecurityLabel type alias
 # ---------------------------------------------------------------------------
+
 
 def security_label(
     integrity: IntegrityLattice | None = None,

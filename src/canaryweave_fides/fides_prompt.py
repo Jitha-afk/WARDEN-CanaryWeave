@@ -6,8 +6,16 @@ from typing import Any, Mapping, Sequence
 from .decisions import Decision, FidesVerdict
 from .facts import NormalizedFacts
 
-_ALLOWED_VERDICTS = {FidesVerdict.SAFE.value, FidesVerdict.UNSAFE.value, FidesVerdict.UNCERTAIN.value}
-_ALLOWED_DECISIONS = {Decision.ALLOW.value, Decision.QUARANTINE.value, Decision.BLOCK.value}
+_ALLOWED_VERDICTS = {
+    FidesVerdict.SAFE.value,
+    FidesVerdict.UNSAFE.value,
+    FidesVerdict.UNCERTAIN.value,
+}
+_ALLOWED_DECISIONS = {
+    Decision.ALLOW.value,
+    Decision.QUARANTINE.value,
+    Decision.BLOCK.value,
+}
 
 
 def build_fides_judge_prompt(
@@ -81,7 +89,9 @@ def parse_fides_judge_response(text: str) -> dict[str, Any]:
     verdict = str(data.get("verdict", FidesVerdict.UNCERTAIN.value)).lower()
     if verdict not in _ALLOWED_VERDICTS:
         verdict = FidesVerdict.UNCERTAIN.value
-    recommended = str(data.get("recommended_decision") or _decision_for_verdict(verdict)).lower()
+    recommended = str(
+        data.get("recommended_decision") or _decision_for_verdict(verdict)
+    ).lower()
     if recommended not in _ALLOWED_DECISIONS:
         recommended = _decision_for_verdict(verdict)
     try:
@@ -90,7 +100,11 @@ def parse_fides_judge_response(text: str) -> dict[str, Any]:
         confidence = 0.0
     confidence = max(0.0, min(1.0, confidence))
     raw_reason_codes = data.get("reason_codes", ())
-    reason_codes = [str(code) for code in raw_reason_codes] if isinstance(raw_reason_codes, list) else []
+    reason_codes = (
+        [str(code) for code in raw_reason_codes]
+        if isinstance(raw_reason_codes, list)
+        else []
+    )
     if not reason_codes:
         reason_codes = [f"fides.provider.{verdict}"]
     return {

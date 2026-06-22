@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .lattice import IntegrityLattice, ProductLattice, security_label
+from .lattice import IntegrityLattice, ProductLattice
 
 
 @dataclass(frozen=True)

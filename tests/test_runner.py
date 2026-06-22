@@ -15,7 +15,12 @@ def test_runner_repeats_cases_for_configured_iterations():
     assert report["total_cases"] == 1
     assert report["total_iterations"] == 3
     assert report["provider_calls"] == 0
-    assert set(report["defense_stacks"]) == {"no_guard", "regex_baseline", "yara_rules", "rules_plus_fides"}
+    assert set(report["defense_stacks"]) == {
+        "no_guard",
+        "regex_baseline",
+        "yara_rules",
+        "rules_plus_fides",
+    }
     assert report["defense_stacks"]["no_guard"]["allow"] == 3
     assert report["defense_stacks"]["yara_rules"]["block"] >= 1
     assert "adapter_results" in report
@@ -57,7 +62,9 @@ def test_runner_writes_private_reviewer_csv_with_raw_io_and_labels(tmp_path):
     output = tmp_path / "private-review" / "review.csv"
 
     report = run_evaluation(
-        EvaluationRunConfig(adapters=(ASBAdapter(AdapterConfig(root=dataset)),), iterations=1),
+        EvaluationRunConfig(
+            adapters=(ASBAdapter(AdapterConfig(root=dataset)),), iterations=1
+        ),
         private_review_csv=output,
     )
 
@@ -71,7 +78,10 @@ def test_runner_writes_private_reviewer_csv_with_raw_io_and_labels(tmp_path):
     assert row["expected_behavior"] == "block"
     assert row["llm_label"] == "not_called"
     assert row["decision"] in {"allow", "block", "quarantine"}
-    assert row["raw_input"] == "opaque local tool name\npolicy instruction hierarchy override structure\nstructural metadata only\nstructural goal label"
+    assert (
+        row["raw_input"]
+        == "opaque local tool name\npolicy instruction hierarchy override structure\nstructural metadata only\nstructural goal label"
+    )
     assert "decision" in row["raw_output"]
     assert row["raw_ref"].startswith("asb:file_hmac=")
     assert row["expected_rule_ids"] == "cwfr-0003"
@@ -86,7 +96,9 @@ def test_runner_private_reviewer_csv_neutralizes_spreadsheet_formula_cells(tmp_p
     output = tmp_path / "private-review" / "review.csv"
 
     run_evaluation(
-        EvaluationRunConfig(adapters=(ASBAdapter(AdapterConfig(root=dataset)),), iterations=1),
+        EvaluationRunConfig(
+            adapters=(ASBAdapter(AdapterConfig(root=dataset)),), iterations=1
+        ),
         private_review_csv=output,
     )
 
@@ -99,8 +111,13 @@ def test_runner_rejects_private_reviewer_csv_under_public_artifacts(tmp_path):
     public_path = "artifacts/review.csv"
 
     try:
-        run_evaluation(EvaluationRunConfig(adapters=(adapter,), iterations=1), private_review_csv=public_path)
+        run_evaluation(
+            EvaluationRunConfig(adapters=(adapter,), iterations=1),
+            private_review_csv=public_path,
+        )
     except ValueError as exc:
         assert "private reviewer CSV" in str(exc)
     else:
-        raise AssertionError("expected private reviewer CSV path guard to reject public artifact path")
+        raise AssertionError(
+            "expected private reviewer CSV path guard to reject public artifact path"
+        )

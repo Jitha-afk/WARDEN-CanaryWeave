@@ -1,4 +1,9 @@
-from canaryweave_fides.adapters import AdapterConfig, AdapterResult, AdapterStatus, SyntheticAdapter
+from canaryweave_fides.adapters import (
+    AdapterConfig,
+    AdapterResult,
+    AdapterStatus,
+    SyntheticAdapter,
+)
 from canaryweave_fides.cases import AttackCase
 from canaryweave_fides.gate import FidesJudgeResult, StaticFidesJudge
 from canaryweave_fides.reporting import build_public_report
@@ -52,7 +57,9 @@ def _attack_case(case_id, *, category, surface="mcp_tool", safe_features=None):
 
 
 def test_public_report_summarizes_security_and_maintainability_metrics():
-    raw = run_evaluation(EvaluationRunConfig(adapters=(SyntheticAdapter(AdapterConfig()),), iterations=2))
+    raw = run_evaluation(
+        EvaluationRunConfig(adapters=(SyntheticAdapter(AdapterConfig()),), iterations=2)
+    )
 
     report = build_public_report(raw)
 
@@ -67,7 +74,11 @@ def test_public_report_summarizes_security_and_maintainability_metrics():
 
 
 def test_public_report_does_not_include_case_level_payload_fields():
-    raw = run_evaluation(EvaluationRunConfig(adapters=(SyntheticAdapter(AdapterConfig(max_cases=1)),), iterations=1))
+    raw = run_evaluation(
+        EvaluationRunConfig(
+            adapters=(SyntheticAdapter(AdapterConfig(max_cases=1)),), iterations=1
+        )
+    )
     report = build_public_report(raw)
     text = str(report).lower()
 
@@ -78,9 +89,17 @@ def test_public_report_does_not_include_case_level_payload_fields():
 
 
 def test_public_report_omits_model_output_and_judge_transcripts_from_private_rows():
-    raw = run_evaluation(EvaluationRunConfig(adapters=(SyntheticAdapter(AdapterConfig(max_cases=1)),), iterations=1))
-    raw["case_results"][0]["decisions"][0]["model_output"] = "PRIVATE_MODEL_OUTPUT_SHOULD_NOT_BE_PUBLIC"
-    raw["case_results"][0]["decisions"][0]["judge_transcript"] = "PRIVATE_JUDGE_TRANSCRIPT_SHOULD_NOT_BE_PUBLIC"
+    raw = run_evaluation(
+        EvaluationRunConfig(
+            adapters=(SyntheticAdapter(AdapterConfig(max_cases=1)),), iterations=1
+        )
+    )
+    raw["case_results"][0]["decisions"][0][
+        "model_output"
+    ] = "PRIVATE_MODEL_OUTPUT_SHOULD_NOT_BE_PUBLIC"
+    raw["case_results"][0]["decisions"][0][
+        "judge_transcript"
+    ] = "PRIVATE_JUDGE_TRANSCRIPT_SHOULD_NOT_BE_PUBLIC"
 
     report = build_public_report(raw)
     text = str(report)
@@ -120,9 +139,21 @@ def test_incremental_metrics_keys_include_case_id_to_avoid_collisions():
                 "surface": "mcp_tool",
                 "iteration": 0,
                 "decisions": [
-                    {"stack": "regex_baseline", "decision": "block", "rule_ids": ["regex.marker"]},
-                    {"stack": "yara_rules", "decision": "block", "rule_ids": ["cwfr-0001"]},
-                    {"stack": "rules_plus_fides", "decision": "block", "rule_ids": ["cwfr-0001"]},
+                    {
+                        "stack": "regex_baseline",
+                        "decision": "block",
+                        "rule_ids": ["regex.marker"],
+                    },
+                    {
+                        "stack": "yara_rules",
+                        "decision": "block",
+                        "rule_ids": ["cwfr-0001"],
+                    },
+                    {
+                        "stack": "rules_plus_fides",
+                        "decision": "block",
+                        "rule_ids": ["cwfr-0001"],
+                    },
                 ],
             },
         ],
@@ -163,8 +194,16 @@ def test_public_report_includes_disagreement_matrix_without_case_ids():
                 "iteration": 0,
                 "decisions": [
                     {"stack": "regex_baseline", "decision": "allow", "rule_ids": []},
-                    {"stack": "yara_rules", "decision": "block", "rule_ids": ["cwfr-0001"]},
-                    {"stack": "rules_plus_fides", "decision": "block", "rule_ids": ["cwfr-0001"]},
+                    {
+                        "stack": "yara_rules",
+                        "decision": "block",
+                        "rule_ids": ["cwfr-0001"],
+                    },
+                    {
+                        "stack": "rules_plus_fides",
+                        "decision": "block",
+                        "rule_ids": ["cwfr-0001"],
+                    },
                 ],
             },
             {
@@ -177,7 +216,12 @@ def test_public_report_includes_disagreement_matrix_without_case_ids():
                 "decisions": [
                     {"stack": "regex_baseline", "decision": "allow", "rule_ids": []},
                     {"stack": "yara_rules", "decision": "allow", "rule_ids": []},
-                    {"stack": "rules_plus_fides", "decision": "quarantine", "rule_ids": [], "blocked_by": "fides_judge"},
+                    {
+                        "stack": "rules_plus_fides",
+                        "decision": "quarantine",
+                        "rule_ids": [],
+                        "blocked_by": "fides_judge",
+                    },
                 ],
             },
         ],
@@ -189,13 +233,17 @@ def test_public_report_includes_disagreement_matrix_without_case_ids():
     assert matrix["stacks"] == ["regex_baseline", "yara_rules", "rules_plus_fides"]
     assert matrix["pairs"]["regex_baseline__yara_rules"]["same_action"] == 2
     assert matrix["pairs"]["regex_baseline__yara_rules"]["different_action"] == 1
-    assert matrix["pairs"]["yara_rules__rules_plus_fides"]["different_block_outcome"] == 1
+    assert (
+        matrix["pairs"]["yara_rules__rules_plus_fides"]["different_block_outcome"] == 1
+    )
     assert matrix["joint_patterns"]["allow|block|block"] == 1
     assert "case.warden_catch" not in str(matrix)
 
 
 def test_public_report_includes_rule_coverage_by_dataset_and_category_and_zero_coverage_rules():
-    raw = run_evaluation(EvaluationRunConfig(adapters=(SyntheticAdapter(AdapterConfig()),), iterations=1))
+    raw = run_evaluation(
+        EvaluationRunConfig(adapters=(SyntheticAdapter(AdapterConfig()),), iterations=1)
+    )
 
     report = build_public_report(raw, all_rule_ids={"cwfr-0001", "cwfr-unused"})
     maintainability = report["maintainability_metrics"]
@@ -205,9 +253,9 @@ def test_public_report_includes_rule_coverage_by_dataset_and_category_and_zero_c
     dataset_coverage = maintainability["rule_coverage_by_dataset"]["synthetic"]
     assert dataset_coverage["covered_rule_count"] >= 1
     assert "cwfr-0001" in dataset_coverage["covered_rule_ids"]
-    category_coverage = maintainability["rule_coverage_by_dataset_and_category"]["synthetic"][
-        "origin_authority_confusion"
-    ]
+    category_coverage = maintainability["rule_coverage_by_dataset_and_category"][
+        "synthetic"
+    ]["origin_authority_confusion"]
     assert "cwfr-0001" in category_coverage["covered_rule_ids"]
     assert category_coverage["covered_rule_count"] >= 1
 
@@ -273,7 +321,12 @@ def test_public_report_summarizes_missing_prerequisites_when_case_facts_are_avai
                 "iteration": 0,
                 "ground_truth": {
                     "expected_rule_ids": ["cwfr-0106"],
-                    "labels": {"required_fields": ["features.command_execution_shape", "requested.capability"]},
+                    "labels": {
+                        "required_fields": [
+                            "features.command_execution_shape",
+                            "requested.capability",
+                        ]
+                    },
                 },
                 "safe_features": {"command_execution_shape": True},
                 "policy_context": {"allowed_tools": ["read_task"]},
@@ -291,7 +344,12 @@ def test_public_report_summarizes_missing_prerequisites_when_case_facts_are_avai
                 "iteration": 0,
                 "ground_truth": {
                     "expected_rule_ids": ["cwfr-0106"],
-                    "labels": {"required_fields": ["features.command_execution_shape", "requested.capability"]},
+                    "labels": {
+                        "required_fields": [
+                            "features.command_execution_shape",
+                            "requested.capability",
+                        ]
+                    },
                 },
                 "safe_features": {},
                 "policy_context": {},

@@ -37,8 +37,23 @@ _TEXT_FIELD_NAMES = {
     "expected achievements",
 }
 _ID_FIELD_NAMES = ("id", "case_id", "record_id", "example_id", "sample_id", "name")
-_LABEL_FIELD_NAMES = ("label", "case_kind", "kind", "is_attack", "attack", "benign", "Attack Type")
-_CATEGORY_FIELD_NAMES = ("category", "attack_category", "class", "type", "taxonomy", "Attack Type")
+_LABEL_FIELD_NAMES = (
+    "label",
+    "case_kind",
+    "kind",
+    "is_attack",
+    "attack",
+    "benign",
+    "Attack Type",
+)
+_CATEGORY_FIELD_NAMES = (
+    "category",
+    "attack_category",
+    "class",
+    "type",
+    "taxonomy",
+    "Attack Type",
+)
 _SURFACE_FIELD_NAMES = ("surface", "source", "channel", "modality")
 _SPLIT_FIELD_NAMES = ("split", "partition", "subset")
 _ALLOWED_SUFFIXES = (".jsonl", ".json", ".yaml", ".yml", ".csv", ".txt")
@@ -94,7 +109,9 @@ def _safe_key_path(path: tuple[str, ...]) -> str:
     return ".".join(safe_parts)
 
 
-def _iter_text_candidates(value: Any, path: tuple[str, ...] = ()) -> Iterable[tuple[tuple[str, ...], str]]:
+def _iter_text_candidates(
+    value: Any, path: tuple[str, ...] = ()
+) -> Iterable[tuple[tuple[str, ...], str]]:
     if isinstance(value, Mapping):
         for key, item in value.items():
             key_text = str(key)
@@ -104,11 +121,15 @@ def _iter_text_candidates(value: Any, path: tuple[str, ...] = ()) -> Iterable[tu
                 if isinstance(item, str):
                     yield next_path, item
                 elif isinstance(item, (list, tuple)):
-                    joined = "\n".join(str(part) for part in item if isinstance(part, str))
+                    joined = "\n".join(
+                        str(part) for part in item if isinstance(part, str)
+                    )
                     if joined:
                         yield next_path, joined
                 elif isinstance(item, Mapping):
-                    strings = [text for _, text in _iter_text_candidates(item, next_path)]
+                    strings = [
+                        text for _, text in _iter_text_candidates(item, next_path)
+                    ]
                     if strings:
                         yield next_path, "\n".join(strings)
             yield from _iter_text_candidates(item, next_path)
@@ -127,7 +148,10 @@ def _record_to_private_text(record: Mapping[str, Any]) -> tuple[str, tuple[str, 
 
 
 def _classify_kind(record: Mapping[str, Any]) -> str:
-    if _first_value(record, ("Attacker Tool", "Attacker Instruction", "Attack Type")) is not None:
+    if (
+        _first_value(record, ("Attacker Tool", "Attacker Instruction", "Attack Type"))
+        is not None
+    ):
         return "attack"
     if _first_value(record, ("Tool Name", "Expected Achievements")) is not None:
         return "benign"
@@ -156,7 +180,10 @@ def _optional_bool(value: Any) -> bool | None:
 def _asb_native_safe_features(record: Mapping[str, Any]) -> dict[str, Any]:
     """Return public-safe ASB-native schema metadata without raw values."""
     features: dict[str, Any] = {}
-    if _first_value(record, ("Attacker Tool", "Attacker Instruction", "Attack Type")) is not None:
+    if (
+        _first_value(record, ("Attacker Tool", "Attacker Instruction", "Attack Type"))
+        is not None
+    ):
         features["asb_record_family"] = "attack_tool"
     elif _first_value(record, ("Tool Name", "Expected Achievements")) is not None:
         features["asb_record_family"] = "normal_tool"
@@ -184,8 +211,13 @@ def _truth_from_record(record: Mapping[str, Any]) -> GroundTruth:
     return GroundTruth(
         case_kind=case_kind,
         expected_behavior=_expected_behavior(case_kind),
-        attack_category=_stable_label(_first_value(record, _CATEGORY_FIELD_NAMES), "dataset_native"),
-        labels={"dataset_label_present": _first_value(record, _LABEL_FIELD_NAMES) is not None},
+        attack_category=_stable_label(
+            _first_value(record, _CATEGORY_FIELD_NAMES), "dataset_native"
+        ),
+        labels={
+            "dataset_label_present": _first_value(record, _LABEL_FIELD_NAMES)
+            is not None
+        },
     )
 
 
@@ -222,23 +254,35 @@ _CATEGORY_RULE_EVIDENCE: dict[str, dict[str, Any]] = {
     },
     "mcp_prompt_boundary/protected_context_exfiltration": {
         "expected_rule_ids": ("cwfr-0108",),
-        "required_fields": ("features.protected_context_extraction_shape", "features.origin_labels"),
+        "required_fields": (
+            "features.protected_context_extraction_shape",
+            "features.origin_labels",
+        ),
         "policy_violation_id": "protected_context_exfiltration",
     },
     "mcp_impact/destructive_agent_action": {
         "expected_rule_ids": ("cwfr-0109",),
-        "required_fields": ("features.destructive_action_shape", "requested.capability"),
+        "required_fields": (
+            "features.destructive_action_shape",
+            "requested.capability",
+        ),
         "policy_violation_id": "destructive_agent_action",
     },
     "mcp_abuse/recon_social_engineering": {
         "expected_rule_ids": ("cwfr-0110",),
-        "required_fields": ("features.social_engineering_shape", "features.deception_shape", "features.origin_labels"),
+        "required_fields": (
+            "features.social_engineering_shape",
+            "features.deception_shape",
+            "features.origin_labels",
+        ),
         "policy_violation_id": "deceptive_social_engineering_tasking",
     },
 }
 
 
-def _rule_evidence_for_category(category: str, case_kind: str, flags: Mapping[str, Any]) -> dict[str, Any]:
+def _rule_evidence_for_category(
+    category: str, case_kind: str, flags: Mapping[str, Any]
+) -> dict[str, Any]:
     """Return public-safe scoring metadata for mapped attack categories.
 
     These labels are used only by evaluation/reporting. They are not consumed by
@@ -248,12 +292,16 @@ def _rule_evidence_for_category(category: str, case_kind: str, flags: Mapping[st
     """
     if case_kind != "attack":
         return {}
-    if category == "mcp_data_flow/credential_or_secret_exposure" and not flags.get("credential_or_secret_shape"):
+    if category == "mcp_data_flow/credential_or_secret_exposure" and not flags.get(
+        "credential_or_secret_shape"
+    ):
         return {}
     return dict(_CATEGORY_RULE_EVIDENCE.get(category, {}))
 
 
-def _origin_labels_for_surface(surface: str, flags: Mapping[str, Any], *, descriptive_only: bool = False) -> list[str]:
+def _origin_labels_for_surface(
+    surface: str, flags: Mapping[str, Any], *, descriptive_only: bool = False
+) -> list[str]:
     if descriptive_only:
         return ["api_message"]
     if surface in {"tool", "tool_result"}:
@@ -264,7 +312,9 @@ def _origin_labels_for_surface(surface: str, flags: Mapping[str, Any], *, descri
         return ["server_manifest"]
     if surface in {"sampling", "server_sampling"}:
         return ["server_sampling"]
-    if flags.get("protected_context_extraction_shape") or flags.get("social_engineering_shape"):
+    if flags.get("protected_context_extraction_shape") or flags.get(
+        "social_engineering_shape"
+    ):
         return ["resource_content"]
     if surface == "api_message" and flags.get("instruction_shape"):
         # Dataset-local API-message records are untrusted source material. Map
@@ -277,19 +327,136 @@ def _origin_labels_for_surface(surface: str, flags: Mapping[str, Any], *, descri
 def _safe_text_flags(text: str, surface: str) -> dict[str, Any]:
     lowered = text.lower()
     flags = {
-        "instruction_shape": any(term in lowered for term in ("ignore", "override", "policy", "instruction", "developer", "system", "role", "jailbreak")),
-        "command_execution_shape": any(term in lowered for term in ("shell", "command", "execute", "script", "python", "bash", "powershell", "terminal")),
-        "credential_or_secret_shape": any(term in lowered for term in ("credential", "secret", "token", "password", "private key", "api key")),
-        "exfiltration_shape": any(term in lowered for term in ("exfil", "send", "upload", "leak", "external", "webhook", "remote")),
-        "path_boundary_shape": any(term in lowered for term in ("path", "file", "directory", "traversal", "workspace", "passwd", "parent directory")),
-        "network_request_shape": any(term in lowered for term in ("http", "url", "network", "webhook", "endpoint", "ssrf")),
-        "memory_poisoning_shape": any(term in lowered for term in ("memory", "remember", "store", "persist", "rag", "retrieval")),
-        "approval_bypass_shape": any(term in lowered for term in ("approval", "consent", "without asking", "bypass", "permission")),
-        "protected_context_extraction_shape": any(term in lowered for term in ("system prompt", "system policy", "developer message", "protected context", "hidden policy", "tool schema", "extract protected", "reveal protected")),
-        "destructive_action_shape": any(term in lowered for term in ("delete", "wipe", "reset", "destroy", "destructive", "remove all", "erase")),
-        "social_engineering_shape": any(term in lowered for term in ("target profile", "victim profile", "impersonation", "lure", "phishing", "outbound contact")),
-        "deception_shape": any(term in lowered for term in ("deception", "deceptive", "impersonation", "lure", "phishing", "spoof")),
-        "obfuscated": any(term in lowered for term in ("base64", "unicode", "encoded", "obfuscat", "hidden")),
+        "instruction_shape": any(
+            term in lowered
+            for term in (
+                "ignore",
+                "override",
+                "policy",
+                "instruction",
+                "developer",
+                "system",
+                "role",
+                "jailbreak",
+            )
+        ),
+        "command_execution_shape": any(
+            term in lowered
+            for term in (
+                "shell",
+                "command",
+                "execute",
+                "script",
+                "python",
+                "bash",
+                "powershell",
+                "terminal",
+            )
+        ),
+        "credential_or_secret_shape": any(
+            term in lowered
+            for term in (
+                "credential",
+                "secret",
+                "token",
+                "password",
+                "private key",
+                "api key",
+            )
+        ),
+        "exfiltration_shape": any(
+            term in lowered
+            for term in (
+                "exfil",
+                "send",
+                "upload",
+                "leak",
+                "external",
+                "webhook",
+                "remote",
+            )
+        ),
+        "path_boundary_shape": any(
+            term in lowered
+            for term in (
+                "path",
+                "file",
+                "directory",
+                "traversal",
+                "workspace",
+                "passwd",
+                "parent directory",
+            )
+        ),
+        "network_request_shape": any(
+            term in lowered
+            for term in ("http", "url", "network", "webhook", "endpoint", "ssrf")
+        ),
+        "memory_poisoning_shape": any(
+            term in lowered
+            for term in ("memory", "remember", "store", "persist", "rag", "retrieval")
+        ),
+        "approval_bypass_shape": any(
+            term in lowered
+            for term in (
+                "approval",
+                "consent",
+                "without asking",
+                "bypass",
+                "permission",
+            )
+        ),
+        "protected_context_extraction_shape": any(
+            term in lowered
+            for term in (
+                "system prompt",
+                "system policy",
+                "developer message",
+                "protected context",
+                "hidden policy",
+                "tool schema",
+                "extract protected",
+                "reveal protected",
+            )
+        ),
+        "destructive_action_shape": any(
+            term in lowered
+            for term in (
+                "delete",
+                "wipe",
+                "reset",
+                "destroy",
+                "destructive",
+                "remove all",
+                "erase",
+            )
+        ),
+        "social_engineering_shape": any(
+            term in lowered
+            for term in (
+                "target profile",
+                "victim profile",
+                "impersonation",
+                "lure",
+                "phishing",
+                "outbound contact",
+            )
+        ),
+        "deception_shape": any(
+            term in lowered
+            for term in (
+                "deception",
+                "deceptive",
+                "impersonation",
+                "lure",
+                "phishing",
+                "spoof",
+            )
+        ),
+        "obfuscated": any(
+            term in lowered
+            for term in ("base64", "unicode", "encoded", "obfuscat", "hidden")
+        ),
         "tool_plan_shape": surface in {"tool", "api_message", "tool_result"},
     }
     return flags
@@ -321,23 +488,60 @@ def _shared_category(flags: Mapping[str, Any], fallback: str) -> str:
     return fallback
 
 
-def _requested_from_flags(flags: Mapping[str, Any], *, descriptive_only: bool = False) -> dict[str, str]:
+def _requested_from_flags(
+    flags: Mapping[str, Any], *, descriptive_only: bool = False
+) -> dict[str, str]:
     if descriptive_only:
         return {}
     requested: dict[str, str] = {}
     if flags.get("destructive_action_shape"):
-        requested.update({"requested_tool": "admin_action", "requested_capability": "admin_action", "requested_action": "destructive_update"})
+        requested.update(
+            {
+                "requested_tool": "admin_action",
+                "requested_capability": "admin_action",
+                "requested_action": "destructive_update",
+            }
+        )
     elif flags.get("command_execution_shape"):
-        requested.update({"requested_tool": "execute_code", "requested_capability": "execute_code", "requested_action": "execute"})
+        requested.update(
+            {
+                "requested_tool": "execute_code",
+                "requested_capability": "execute_code",
+                "requested_action": "execute",
+            }
+        )
     elif flags.get("path_boundary_shape"):
-        requested.update({"requested_tool": "read_file", "requested_capability": "read_file", "requested_action": "read_resource"})
+        requested.update(
+            {
+                "requested_tool": "read_file",
+                "requested_capability": "read_file",
+                "requested_action": "read_resource",
+            }
+        )
     elif flags.get("network_request_shape"):
-        requested.update({"requested_tool": "network_request", "requested_capability": "network_request", "requested_action": "external_request"})
+        requested.update(
+            {
+                "requested_tool": "network_request",
+                "requested_capability": "network_request",
+                "requested_action": "external_request",
+            }
+        )
     elif flags.get("memory_poisoning_shape"):
-        requested.update({"requested_tool": "memory_write", "requested_capability": "memory_write", "requested_action": "persist_context"})
-    if flags.get("exfiltration_shape") or flags.get("credential_or_secret_shape") or flags.get("network_request_shape"):
+        requested.update(
+            {
+                "requested_tool": "memory_write",
+                "requested_capability": "memory_write",
+                "requested_action": "persist_context",
+            }
+        )
+    if (
+        flags.get("exfiltration_shape")
+        or flags.get("credential_or_secret_shape")
+        or flags.get("network_request_shape")
+    ):
         requested["requested_sink"] = "external_sink"
     return requested
+
 
 def _load_json_records(path: Path) -> Iterable[Mapping[str, Any]]:
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -421,11 +625,23 @@ class ASBAdapter(DatasetAdapter):
                     if not isinstance(record, Mapping):
                         continue
                     cases.append(self._record_to_case(record, root, file_path, index))
-                    if self.config.max_cases is not None and len(cases) >= self.config.max_cases:
+                    if (
+                        self.config.max_cases is not None
+                        and len(cases) >= self.config.max_cases
+                    ):
                         break
-            except (OSError, UnicodeError, json.JSONDecodeError, yaml.YAMLError, csv.Error):
+            except (
+                OSError,
+                UnicodeError,
+                json.JSONDecodeError,
+                yaml.YAMLError,
+                csv.Error,
+            ):
                 errors += 1
-            if self.config.max_cases is not None and len(cases) >= self.config.max_cases:
+            if (
+                self.config.max_cases is not None
+                and len(cases) >= self.config.max_cases
+            ):
                 break
 
         status = AdapterStatus.LOADED if cases else AdapterStatus.EMPTY
@@ -434,13 +650,21 @@ class ASBAdapter(DatasetAdapter):
             status=status,
             cases=tuple(cases),
             message=f"{self.dataset_id} adapter loaded {len(cases)} cases with {errors} unreadable files skipped",
-            safe_metadata={"files_inspected": len(files), "unreadable_files": errors, "public_export": "raw_text_included"},
+            safe_metadata={
+                "files_inspected": len(files),
+                "unreadable_files": errors,
+                "public_export": "raw_text_included",
+            },
         )
 
     def _discover_files(self, root: Path) -> list[Path]:
         if root.is_file():
             return [root] if root.suffix.lower() in _ALLOWED_SUFFIXES else []
-        return sorted(path for path in root.rglob("*") if path.is_file() and path.suffix.lower() in _ALLOWED_SUFFIXES)
+        return sorted(
+            path
+            for path in root.rglob("*")
+            if path.is_file() and path.suffix.lower() in _ALLOWED_SUFFIXES
+        )
 
     def _load_records(self, path: Path) -> Iterable[Mapping[str, Any]]:
         suffix = path.suffix.lower()
@@ -455,24 +679,38 @@ class ASBAdapter(DatasetAdapter):
         elif suffix == ".txt":
             yield from _load_txt_records(path)
 
-    def _record_to_case(self, record: Mapping[str, Any], root: Path, file_path: Path, index: int) -> AttackCase:
+    def _record_to_case(
+        self, record: Mapping[str, Any], root: Path, file_path: Path, index: int
+    ) -> AttackCase:
         private_text, payload_paths = _record_to_private_text(record)
         native_id = _first_value(record, _ID_FIELD_NAMES)
-        rel_path = file_path.relative_to(root) if file_path != root else Path(file_path.name)
+        rel_path = (
+            file_path.relative_to(root) if file_path != root else Path(file_path.name)
+        )
         raw_ref = f"{self.dataset_id}:file_hmac={public_hmac_hex(str(rel_path), length=16)}#record={index}"
         opaque_material = f"{rel_path}:{index}:{native_id}:{_sha256_text(private_text)}"
-        split = _stable_label(_first_value(record, _SPLIT_FIELD_NAMES), self.config.split or "dev")
+        split = _stable_label(
+            _first_value(record, _SPLIT_FIELD_NAMES), self.config.split or "dev"
+        )
         ground_truth = _truth_from_record(record)
-        surface = _stable_label(_first_value(record, _SURFACE_FIELD_NAMES), "api_message")
+        surface = _stable_label(
+            _first_value(record, _SURFACE_FIELD_NAMES), "api_message"
+        )
         top_level_keys = tuple(sorted(str(key) for key in record.keys()))
         flags = _safe_text_flags(private_text, surface)
         native_features = _asb_native_safe_features(record)
         descriptive_only = native_features.get("asb_record_family") == "normal_tool"
         shared_category = _shared_category(flags, ground_truth.attack_category)
         requested = _requested_from_flags(flags, descriptive_only=descriptive_only)
-        origin_labels = _origin_labels_for_surface(surface, flags, descriptive_only=descriptive_only)
-        case_kind_value = getattr(ground_truth.case_kind, "value", str(ground_truth.case_kind))
-        rule_evidence = _rule_evidence_for_category(shared_category, case_kind_value, flags)
+        origin_labels = _origin_labels_for_surface(
+            surface, flags, descriptive_only=descriptive_only
+        )
+        case_kind_value = getattr(
+            ground_truth.case_kind, "value", str(ground_truth.case_kind)
+        )
+        rule_evidence = _rule_evidence_for_category(
+            shared_category, case_kind_value, flags
+        )
 
         safe_features = {
             "length": len(private_text),
@@ -483,14 +721,18 @@ class ASBAdapter(DatasetAdapter):
             "payload_field_paths": payload_paths,
             "top_level_key_count": len(top_level_keys),
             "top_level_keys_hash": public_hash("\n".join(top_level_keys)),
-            "native_id_hash": public_hash(str(native_id)) if native_id is not None else None,
+            "native_id_hash": (
+                public_hash(str(native_id)) if native_id is not None else None
+            ),
             **native_features,
             **flags,
             **requested,
             "origin_labels": origin_labels,
             "trust_labels": ["untrusted"],
         }
-        safe_features = {key: value for key, value in safe_features.items() if value is not None}
+        safe_features = {
+            key: value for key, value in safe_features.items() if value is not None
+        }
         labels = dict(ground_truth.labels)
         if rule_evidence:
             labels.update(
@@ -505,7 +747,9 @@ class ASBAdapter(DatasetAdapter):
             case_kind=ground_truth.case_kind,
             expected_behavior=ground_truth.expected_behavior,
             attack_category=shared_category,
-            expected_rule_ids=tuple(rule_evidence.get("expected_rule_ids", ground_truth.expected_rule_ids)),
+            expected_rule_ids=tuple(
+                rule_evidence.get("expected_rule_ids", ground_truth.expected_rule_ids)
+            ),
             labels=labels,
         )
 

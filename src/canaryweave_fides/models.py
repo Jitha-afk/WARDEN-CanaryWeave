@@ -60,7 +60,10 @@ class EvaluationRecord:
         return bool(self.facts.get(name, False))
 
     def to_dict(self) -> dict[str, Any]:
-        return {"text": self.text, "facts": {key: bool(value) for key, value in self.facts.items()}}
+        return {
+            "text": self.text,
+            "facts": {key: bool(value) for key, value in self.facts.items()},
+        }
 
 
 @dataclass(frozen=True)

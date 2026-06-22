@@ -81,7 +81,9 @@ def test_ground_truth_is_separate_from_safe_features_and_normalized_facts():
         expected_behavior="block",
     )
 
-    facts_blob = json.dumps(NormalizedFacts.from_attack_case(case).to_dict(), sort_keys=True)
+    facts_blob = json.dumps(
+        NormalizedFacts.from_attack_case(case).to_dict(), sort_keys=True
+    )
 
     assert "label_only_category" not in facts_blob
     assert "case_kind" not in facts_blob

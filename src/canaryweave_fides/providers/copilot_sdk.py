@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import json
 import os
-import re
 import time
 from pathlib import Path
 from typing import Any
@@ -25,7 +23,9 @@ class CopilotSdkJudgeProvider:
 
     def __init__(self, config: JudgeProviderConfig) -> None:
         if not config.provider_calls_enabled:
-            raise ValueError("copilot_sdk provider requires provider_calls_enabled=true")
+            raise ValueError(
+                "copilot_sdk provider requires provider_calls_enabled=true"
+            )
         self.config = config
         self._use_sdk: bool | None = None
 
@@ -49,7 +49,9 @@ class CopilotSdkJudgeProvider:
     def list_models(*, copilot_home: Path | None = None) -> list[dict[str, Any]]:
         return _run_async(_copilot_list_models(copilot_home=copilot_home))
 
-    def judge(self, prompt: str, *, case_id: str, request_id: str) -> ProviderJudgeResponse:
+    def judge(
+        self, prompt: str, *, case_id: str, request_id: str
+    ) -> ProviderJudgeResponse:
         """Send a judge prompt via SDK or REST fallback."""
         started = time.perf_counter()
 
@@ -62,7 +64,9 @@ class CopilotSdkJudgeProvider:
             text = _rest_judge(prompt, config=self.config)
 
         latency_ms = (time.perf_counter() - started) * 1000.0
-        return ProviderJudgeResponse(text=text, latency_ms=latency_ms, provider_calls=1, model=self.config.model)
+        return ProviderJudgeResponse(
+            text=text, latency_ms=latency_ms, provider_calls=1, model=self.config.model
+        )
 
     def complete(self, prompt: str) -> str:
         """Quarantined LLM completion — processes one variable at a time.
@@ -87,11 +91,21 @@ def _run_async(coro):
         asyncio.get_running_loop()
     except RuntimeError:
         return asyncio.run(coro)
-    raise RuntimeError("copilot_sdk provider cannot run inside an active event loop in the synchronous CLI path")
+    raise RuntimeError(
+        "copilot_sdk provider cannot run inside an active event loop in the synchronous CLI path"
+    )
 
 
-def _client_kwargs(*, copilot_home: Path | None = None, provider_calls_enabled: bool = False, model: str | None = None) -> dict[str, Any]:
-    kwargs: dict[str, Any] = {"mode": "empty", "base_directory": str(copilot_home or default_copilot_home())}
+def _client_kwargs(
+    *,
+    copilot_home: Path | None = None,
+    provider_calls_enabled: bool = False,
+    model: str | None = None,
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "mode": "empty",
+        "base_directory": str(copilot_home or default_copilot_home()),
+    }
     kwargs["use_logged_in_user"] = True
     return kwargs
 
@@ -100,7 +114,9 @@ async def _new_client(*, copilot_home: Path | None = None):
     try:
         from copilot import CopilotClient
     except ImportError as exc:
-        raise RuntimeError("github-copilot-sdk is not installed; install canaryweave-fides[copilot]") from exc
+        raise RuntimeError(
+            "github-copilot-sdk is not installed; install canaryweave-fides[copilot]"
+        ) from exc
     client = CopilotClient(**_client_kwargs(copilot_home=copilot_home))
     start = getattr(client, "start", None)
     if callable(start):
@@ -132,7 +148,9 @@ async def _copilot_auth_status(*, copilot_home: Path | None = None) -> dict[str,
         await _stop_client(client)
 
 
-async def _copilot_list_models(*, copilot_home: Path | None = None) -> list[dict[str, Any]]:
+async def _copilot_list_models(
+    *, copilot_home: Path | None = None
+) -> list[dict[str, Any]]:
     client = await _new_client(copilot_home=copilot_home)
     try:
         method = getattr(client, "list_models", None)
@@ -152,9 +170,14 @@ def _reject_permission_request(*args: Any, **kwargs: Any) -> Any:
     try:
         from copilot.generated.rpc import PermissionDecisionReject
 
-        return PermissionDecisionReject(feedback="FIDES judge rejects all tool and permission requests")
+        return PermissionDecisionReject(
+            feedback="FIDES judge rejects all tool and permission requests"
+        )
     except Exception:
-        return {"kind": "reject", "feedback": "FIDES judge rejects all tool and permission requests"}
+        return {
+            "kind": "reject",
+            "feedback": "FIDES judge rejects all tool and permission requests",
+        }
 
 
 async def _copilot_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
@@ -185,7 +208,10 @@ async def _copilot_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
         # SDK v0.3+ requires ToolSet for excluded_tools, not bare wildcard
         try:
             from copilot._mode import ToolSet
-            kwargs["excluded_tools"] = ToolSet().add_builtin("*").add_mcp("*").add_custom("*")
+
+            kwargs["excluded_tools"] = (
+                ToolSet().add_builtin("*").add_mcp("*").add_custom("*")
+            )
         except (ImportError, AttributeError):
             kwargs["excluded_tools"] = []
         try:
@@ -251,10 +277,14 @@ def _rest_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
 
     if response.status_code == 429:
         retry_after = int(response.headers.get("Retry-After", "5"))
-        raise RuntimeError(f"Rate limited by GitHub Models API. Retry after {retry_after}s")
+        raise RuntimeError(
+            f"Rate limited by GitHub Models API. Retry after {retry_after}s"
+        )
 
     if response.status_code != 200:
-        raise RuntimeError(f"GitHub Models API error {response.status_code}: {response.text[:300]}")
+        raise RuntimeError(
+            f"GitHub Models API error {response.status_code}: {response.text[:300]}"
+        )
 
     data = response.json()
     choices = data.get("choices", [])
@@ -295,12 +325,19 @@ def _public_obj(value: Any) -> dict[str, Any]:
         value = vars(value)
     if not isinstance(value, dict):
         return {"value": _redact_public_value(value)}
-    return {str(key): _redact_public_value(item) for key, item in value.items() if not _sensitive_key(str(key))}
+    return {
+        str(key): _redact_public_value(item)
+        for key, item in value.items()
+        if not _sensitive_key(str(key))
+    }
 
 
 def _sensitive_key(key: str) -> bool:
     lowered = key.lower()
-    return any(secret in lowered for secret in ("token", "secret", "credential", "authorization"))
+    return any(
+        secret in lowered
+        for secret in ("token", "secret", "credential", "authorization")
+    )
 
 
 def _redact_public_value(value: Any) -> Any:
@@ -311,10 +348,13 @@ def _redact_public_value(value: Any) -> Any:
     elif hasattr(value, "__dict__") and not isinstance(value, dict):
         value = vars(value)
     if isinstance(value, dict):
-        return {str(key): _redact_public_value(item) for key, item in value.items() if not _sensitive_key(str(key))}
+        return {
+            str(key): _redact_public_value(item)
+            for key, item in value.items()
+            if not _sensitive_key(str(key))
+        }
     if isinstance(value, list):
         return [_redact_public_value(item) for item in value]
     if isinstance(value, (str, int, float, bool, type(None))):
         return value
     return str(value)
-

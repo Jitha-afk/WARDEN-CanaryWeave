@@ -2,7 +2,6 @@ from canaryweave_fides.models import TraceEvent
 from canaryweave_fides.rule_engine import RuleEngine
 from canaryweave_fides.rule_loader import parse_ruleset
 
-
 _SEM_TEMPLATE = """rule {name} {{
     meta:
         id          = {rule_id}
@@ -16,7 +15,15 @@ _SEM_TEMPLATE = """rule {name} {{
 """
 
 
-def _engine(term, description, threshold, *, name="SemRule", rule_id="cwfr-test-0001", severity="high"):
+def _engine(
+    term,
+    description,
+    threshold,
+    *,
+    name="SemRule",
+    rule_id="cwfr-test-0001",
+    severity="high",
+):
     text = _SEM_TEMPLATE.format(
         name=name,
         rule_id=rule_id,
@@ -35,7 +42,9 @@ def _event(text: str) -> TraceEvent:
 def test_semantic_rule_matches_clear_overlap_and_ignores_unrelated_text():
     engine = _engine("prompt_hiding", "hide system prompt instructions", 0.55)
 
-    assert engine.evaluate([_event("please hide the system prompt instruction text")]).hits
+    assert engine.evaluate(
+        [_event("please hide the system prompt instruction text")]
+    ).hits
     assert not engine.evaluate([_event("schedule a harmless calendar reminder")]).hits
 
 

@@ -35,7 +35,9 @@ def get_adapter_class(name: str) -> Type[DatasetAdapter]:
         raise KeyError(f"unknown dataset adapter: {name}") from exc
 
 
-def create_adapter(name: str, config: AdapterConfig | Mapping[str, object] | None = None) -> DatasetAdapter:
+def create_adapter(
+    name: str, config: AdapterConfig | Mapping[str, object] | None = None
+) -> DatasetAdapter:
     """Instantiate a registered dataset adapter."""
 
     return get_adapter_class(name)(config)

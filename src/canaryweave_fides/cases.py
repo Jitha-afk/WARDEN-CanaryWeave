@@ -41,9 +41,15 @@ class GroundTruth:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "case_kind", CaseKind.coerce(self.case_kind))
-        object.__setattr__(self, "expected_behavior", ExpectedBehavior.coerce(self.expected_behavior))
+        object.__setattr__(
+            self, "expected_behavior", ExpectedBehavior.coerce(self.expected_behavior)
+        )
         object.__setattr__(self, "attack_category", str(self.attack_category))
-        object.__setattr__(self, "expected_rule_ids", tuple(str(rule_id) for rule_id in self.expected_rule_ids))
+        object.__setattr__(
+            self,
+            "expected_rule_ids",
+            tuple(str(rule_id) for rule_id in self.expected_rule_ids),
+        )
         object.__setattr__(self, "labels", _as_mapping(self.labels))
 
     def to_dict(self) -> dict[str, Any]:
@@ -61,7 +67,9 @@ class GroundTruth:
             case_kind=data["case_kind"],
             expected_behavior=data.get("expected_behavior", ExpectedBehavior.ALLOW),
             attack_category=str(data.get("attack_category", "unspecified")),
-            expected_rule_ids=tuple(str(rule_id) for rule_id in data.get("expected_rule_ids", ())),
+            expected_rule_ids=tuple(
+                str(rule_id) for rule_id in data.get("expected_rule_ids", ())
+            ),
             labels=_as_mapping(data.get("labels", {})),
         )
 
@@ -117,7 +125,9 @@ class AttackCase:
     ground_truth: GroundTruth | Mapping[str, Any] | None = None
     iteration_seed: int | None = None
     raw_ref: str | None = field(default=None, repr=False, compare=False)
-    private_data: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
+    private_data: Mapping[str, Any] = field(
+        default_factory=dict, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "case_id", str(self.case_id))
@@ -126,7 +136,9 @@ class AttackCase:
         object.__setattr__(self, "case_kind", CaseKind.coerce(self.case_kind))
         object.__setattr__(self, "attack_category", str(self.attack_category))
         object.__setattr__(self, "surface", str(self.surface))
-        object.__setattr__(self, "expected_behavior", ExpectedBehavior.coerce(self.expected_behavior))
+        object.__setattr__(
+            self, "expected_behavior", ExpectedBehavior.coerce(self.expected_behavior)
+        )
         if self.ground_truth is None:
             ground_truth = GroundTruth(
                 case_kind=self.case_kind,
@@ -180,7 +192,9 @@ class AttackCase:
         )
         missing = [key for key in required if key not in data]
         if missing:
-            raise ValueError(f"AttackCase missing required fields: {', '.join(missing)}")
+            raise ValueError(
+                f"AttackCase missing required fields: {', '.join(missing)}"
+            )
         ground_truth = data.get("ground_truth")
         if ground_truth is None:
             ground_truth = {

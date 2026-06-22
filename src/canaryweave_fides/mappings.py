@@ -50,8 +50,12 @@ class CaseRuleMapping:
             "required_correlation",
             "benign_near_miss_controls",
         ):
-            object.__setattr__(self, key, tuple(str(item) for item in getattr(self, key)))
-        object.__setattr__(self, "external_mappings", dict(self.external_mappings or {}))
+            object.__setattr__(
+                self, key, tuple(str(item) for item in getattr(self, key))
+            )
+        object.__setattr__(
+            self, "external_mappings", dict(self.external_mappings or {})
+        )
 
     def to_init_dict(self) -> dict[str, Any]:
         return {
@@ -89,7 +93,9 @@ class CaseRuleMapping:
         return data
 
 
-def validate_mappings(mappings: tuple[CaseRuleMapping, ...], *, known_rule_ids: set[str]) -> None:
+def validate_mappings(
+    mappings: tuple[CaseRuleMapping, ...], *, known_rule_ids: set[str]
+) -> None:
     seen: set[str] = set()
     for mapping in mappings:
         if mapping.mapping_id in seen:
@@ -99,10 +105,18 @@ def validate_mappings(mappings: tuple[CaseRuleMapping, ...], *, known_rule_ids: 
         unknown_negative = set(mapping.should_not_fire_rule_ids) - known_rule_ids
         if unknown_expected or unknown_negative:
             unknown = sorted(unknown_expected | unknown_negative)
-            raise MappingValidationError(f"unknown rule id in {mapping.mapping_id}: {', '.join(unknown)}")
+            raise MappingValidationError(
+                f"unknown rule id in {mapping.mapping_id}: {', '.join(unknown)}"
+            )
         if not mapping.required_fields:
-            raise MappingValidationError(f"{mapping.mapping_id} required_fields must not be empty")
+            raise MappingValidationError(
+                f"{mapping.mapping_id} required_fields must not be empty"
+            )
         if not mapping.benign_near_miss_controls:
-            raise MappingValidationError(f"{mapping.mapping_id} benign_near_miss_controls must not be empty")
+            raise MappingValidationError(
+                f"{mapping.mapping_id} benign_near_miss_controls must not be empty"
+            )
         if mapping.expected_behavior not in {"allow", "quarantine", "block"}:
-            raise MappingValidationError(f"{mapping.mapping_id} invalid expected_behavior: {mapping.expected_behavior}")
+            raise MappingValidationError(
+                f"{mapping.mapping_id} invalid expected_behavior: {mapping.expected_behavior}"
+            )

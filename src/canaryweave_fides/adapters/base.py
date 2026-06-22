@@ -59,7 +59,20 @@ class AdapterConfig:
             enabled=bool(value.get("enabled", True)),
             required=bool(value.get("required", False)),
             max_cases=value.get("max_cases"),
-            options={key: item for key, item in value.items() if key not in {"root", "path", "local_path", "split", "enabled", "required", "max_cases"}},
+            options={
+                key: item
+                for key, item in value.items()
+                if key
+                not in {
+                    "root",
+                    "path",
+                    "local_path",
+                    "split",
+                    "enabled",
+                    "required",
+                    "max_cases",
+                }
+            },
         )
 
 
@@ -80,7 +93,9 @@ class AdapterResult:
         object.__setattr__(self, "safe_metadata", dict(self.safe_metadata or {}))
         for case in self.cases:
             if not isinstance(case, AttackCase):
-                raise TypeError(f"adapter {self.dataset_id} returned non-AttackCase item: {type(case)!r}")
+                raise TypeError(
+                    f"adapter {self.dataset_id} returned non-AttackCase item: {type(case)!r}"
+                )
 
     def to_dict(self) -> dict[str, Any]:
         status = AdapterStatus.coerce(self.status)

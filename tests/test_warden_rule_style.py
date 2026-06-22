@@ -5,9 +5,14 @@ import pytest
 from canaryweave_fides.rule_loader import parse_ruleset
 from canaryweave_fides.rule_schema import RuleValidationError
 
-
 ROOT = Path(__file__).resolve().parents[1]
-PUBLIC_DOC_ROOTS = [ROOT / "README.md", ROOT / "docs", ROOT / "design", ROOT / "rules", ROOT / "data"]
+PUBLIC_DOC_ROOTS = [
+    ROOT / "README.md",
+    ROOT / "docs",
+    ROOT / "design",
+    ROOT / "rules",
+    ROOT / "data",
+]
 
 
 RICH_CONDITION = (
@@ -52,7 +57,9 @@ def test_rich_warden_rule_accepts_meta_patterns_semantics_and_judge_sections():
 
 
 def test_rich_warden_rule_rejects_unknown_condition_reference():
-    text = RICH_RULE.replace(RICH_CONDITION, "$from_untrusted_origin and $missing_check")
+    text = RICH_RULE.replace(
+        RICH_CONDITION, "$from_untrusted_origin and $missing_check"
+    )
 
     with pytest.raises(RuleValidationError, match="missing_check"):
         parse_ruleset(text)

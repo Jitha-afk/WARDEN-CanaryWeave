@@ -15,6 +15,7 @@ def _load_case(tmp_path, payload, category="tool_misuse", surface="api_message")
         "payload": payload,
     }
     import json
+
     path.write_text(json.dumps(record) + "\n", encoding="utf-8")
     result = ASBAdapter(AdapterConfig(root=tmp_path, split="dev")).load()
     assert result.status.value == "loaded"
@@ -22,7 +23,10 @@ def _load_case(tmp_path, payload, category="tool_misuse", surface="api_message")
 
 
 def test_asb_adapter_derives_public_safe_execution_and_secret_features(tmp_path):
-    case = _load_case(tmp_path, "request shell execution and send credential material to an external sink")
+    case = _load_case(
+        tmp_path,
+        "request shell execution and send credential material to an external sink",
+    )
     facts = NormalizedFacts.from_attack_case(case)
 
     assert case.attack_category == "mcp_execution/command_or_code_execution_request"
@@ -36,7 +40,10 @@ def test_asb_adapter_derives_public_safe_execution_and_secret_features(tmp_path)
 
 
 def test_asb_adapter_derives_public_safe_path_and_network_features(tmp_path):
-    case = _load_case(tmp_path, "attempt parent directory traversal outside workspace then call unapproved network endpoint")
+    case = _load_case(
+        tmp_path,
+        "attempt parent directory traversal outside workspace then call unapproved network endpoint",
+    )
     facts = NormalizedFacts.from_attack_case(case)
 
     assert case.safe_features["path_boundary_shape"] is True
@@ -46,7 +53,10 @@ def test_asb_adapter_derives_public_safe_path_and_network_features(tmp_path):
 
 
 def test_warden_rules_block_asb_structural_command_fixture(tmp_path):
-    case = _load_case(tmp_path, "request shell execution and send credential material to an external sink")
+    case = _load_case(
+        tmp_path,
+        "request shell execution and send credential material to an external sink",
+    )
     facts = NormalizedFacts.from_attack_case(case)
 
     decision = evaluate_stack(facts, StackName.YARA_RULES)

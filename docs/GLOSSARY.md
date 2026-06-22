@@ -152,6 +152,12 @@ These are the only boolean facts a `.war` rule can reference. They are computed 
 | `warden scan "prompt" --fides-live` | With real Copilot SDK judge |
 | `warden scan "prompt" --json` | JSON output |
 | `warden scan "prompt" --trusted` | Mark as trusted origin |
+| `warden bench coverage --dataset mcp --path ...` | Benchmark coverage against dataset |
+| `warden bench coverage ... --fides-live` | With real FIDES judge |
+| `warden bench coverage ... --detail out.jsonl` | Per-case decision JSONL |
+| `warden crawl --endpoint "cmd"` | Crawl MCP endpoint, generate attacks, evaluate |
+| `warden crawl --config conf/mcp_endpoints.yaml` | Crawl from config file |
+| `warden crawl --endpoint "..." --fides-live` | Crawl with real FIDES judge |
 | `warden warden check --prompt "..." ...` | Verbose check with all flags |
 | `warden judge one --prompt "..." ...` | WARDEN + FIDES with full options |
 | `warden warden test --input file.cases` | Run .cases corpus benchmark |

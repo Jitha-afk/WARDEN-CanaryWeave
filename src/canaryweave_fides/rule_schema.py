@@ -169,7 +169,10 @@ class TechniqueRef:
     mapping_strength: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        data: dict[str, Any] = {"framework": self.framework, "technique_id": self.technique_id}
+        data: dict[str, Any] = {
+            "framework": self.framework,
+            "technique_id": self.technique_id,
+        }
         if self.tactic:
             data["tactic"] = self.tactic
         if self.mapping_strength:
@@ -217,7 +220,9 @@ def _threshold(value: Any, layer: str, name: str) -> float:
     except (TypeError, ValueError) as exc:
         raise RuleValidationError(f"{layer} ${name} threshold must be numeric") from exc
     if not 0.0 <= threshold <= 1.0:
-        raise RuleValidationError(f"{layer} ${name} threshold must be between 0.0 and 1.0")
+        raise RuleValidationError(
+            f"{layer} ${name} threshold must be between 0.0 and 1.0"
+        )
     return threshold
 
 
@@ -240,11 +245,17 @@ def _parse_patterns(raw_patterns: Any) -> tuple[PatternDef, ...]:
             pattern = str(raw.get("pattern", ""))
             flags = str(raw.get("flags", ""))
             compile_pattern_regex(pattern, flags)
-            patterns.append(PatternDef(name=name, type="regex", params={"pattern": pattern, "flags": flags}))
+            patterns.append(
+                PatternDef(
+                    name=name, type="regex", params={"pattern": pattern, "flags": flags}
+                )
+            )
         elif kind == "exact":
             if "value" not in raw:
                 raise RuleValidationError(f"pattern ${name} requires a value")
-            patterns.append(PatternDef(name=name, type="exact", params={"value": str(raw["value"])}))
+            patterns.append(
+                PatternDef(name=name, type="exact", params={"value": str(raw["value"])})
+            )
         else:
             raise RuleValidationError(f"Unsupported pattern type: {kind}")
     return tuple(patterns)
@@ -261,7 +272,11 @@ def _parse_semantics(raw_semantics: Any) -> tuple[SemanticPattern, ...]:
         if "description" not in raw:
             raise RuleValidationError(f"semantic ${name} needs a description")
         threshold = _threshold(raw.get("threshold", 0.5), "semantics", name)
-        patterns.append(SemanticPattern(name=name, description=str(raw["description"]), threshold=threshold))
+        patterns.append(
+            SemanticPattern(
+                name=name, description=str(raw["description"]), threshold=threshold
+            )
+        )
     return tuple(patterns)
 
 
@@ -276,7 +291,9 @@ def _parse_judge(raw_judge: Any) -> tuple[JudgeCheck, ...]:
         if "prompt" not in raw:
             raise RuleValidationError(f"judge check ${name} needs a prompt")
         threshold = _threshold(raw.get("threshold", 0.5), "judge", name)
-        checks.append(JudgeCheck(name=name, prompt=str(raw["prompt"]), threshold=threshold))
+        checks.append(
+            JudgeCheck(name=name, prompt=str(raw["prompt"]), threshold=threshold)
+        )
     return tuple(checks)
 
 
@@ -292,7 +309,9 @@ def _infer_framework(technique_id: str) -> str:
         return "D3FEND"
     if technique_id.startswith("T") and technique_id[1:2].isdigit():
         return "ATT&CK"
-    raise RuleValidationError(f"Cannot infer MITRE framework from technique id: {technique_id!r}")
+    raise RuleValidationError(
+        f"Cannot infer MITRE framework from technique id: {technique_id!r}"
+    )
 
 
 def _parse_technique_anchor(raw: Any, *, label: str) -> tuple[TechniqueRef, ...]:
@@ -322,7 +341,14 @@ def _parse_technique_anchor(raw: Any, *, label: str) -> tuple[TechniqueRef, ...]
                     raise RuleValidationError(
                         f"{label} mapping_strength must be direct or analogical, got {mapping_strength!r}"
                     )
-        refs.append(TechniqueRef(framework=framework, technique_id=technique_id, tactic=tactic, mapping_strength=mapping_strength))
+        refs.append(
+            TechniqueRef(
+                framework=framework,
+                technique_id=technique_id,
+                tactic=tactic,
+                mapping_strength=mapping_strength,
+            )
+        )
     return tuple(refs)
 
 
@@ -362,7 +388,9 @@ def _condition_references(condition: str, layer_names: dict[str, set[str]]) -> s
     leftover = _TERM_RE.sub(" ", residual)
     for token in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", leftover):
         if token.lower() not in _BOOLEAN_WORDS:
-            raise RuleValidationError(f"condition contains an undelimited term (missing $?): {token!r}")
+            raise RuleValidationError(
+                f"condition contains an undelimited term (missing $?): {token!r}"
+            )
     return refs
 
 
@@ -401,11 +429,15 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
 
     technique = _parse_technique_anchor(meta.get("technique"), label="technique")
     if not any(ref.framework in {"ATT&CK", "ATLAS"} for ref in technique):
-        raise RuleValidationError(f"rule {rule_id} needs at least one ATT&CK or ATLAS technique anchor")
+        raise RuleValidationError(
+            f"rule {rule_id} needs at least one ATT&CK or ATLAS technique anchor"
+        )
     defense = _parse_technique_anchor(meta.get("defense"), label="defense")
     for ref in defense:
         if ref.framework != "D3FEND":
-            raise RuleValidationError(f"meta.defense anchors must be D3FEND ids, got {ref.technique_id}")
+            raise RuleValidationError(
+                f"meta.defense anchors must be D3FEND ids, got {ref.technique_id}"
+            )
 
     patterns = _parse_patterns(data.get("patterns"))
     semantics = _parse_semantics(data.get("semantics"))
@@ -416,7 +448,9 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
     for layer in (patterns, semantics, judge_checks):
         for item in layer:
             if item.name in declared:
-                raise RuleValidationError(f"rule {rule_id} reuses term name ${item.name} across layers")
+                raise RuleValidationError(
+                    f"rule {rule_id} reuses term name ${item.name} across layers"
+                )
             declared.add(item.name)
 
     layer_names = {
@@ -435,7 +469,9 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
     facts = tuple(sorted(referenced & FACT_NAMES))
     unknown = sorted(referenced - declared - FACT_NAMES)
     if unknown:
-        raise RuleValidationError(f"condition references undeclared terms: {', '.join('$' + u for u in unknown)}")
+        raise RuleValidationError(
+            f"condition references undeclared terms: {', '.join('$' + u for u in unknown)}"
+        )
     dead = sorted(declared - referenced)
     if dead:
         raise RuleValidationError(
@@ -453,7 +489,11 @@ def validate_rule(data: dict[str, Any]) -> RuleDefinition:
         )
 
     tactic = next(
-        (ref.tactic for ref in technique if ref.framework in {"ATT&CK", "ATLAS"} and ref.tactic),
+        (
+            ref.tactic
+            for ref in technique
+            if ref.framework in {"ATT&CK", "ATLAS"} and ref.tactic
+        ),
         "unspecified",
     )
 

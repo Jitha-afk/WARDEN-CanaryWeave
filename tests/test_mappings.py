@@ -1,6 +1,10 @@
 import pytest
 
-from canaryweave_fides.mappings import CaseRuleMapping, MappingValidationError, validate_mappings
+from canaryweave_fides.mappings import (
+    CaseRuleMapping,
+    MappingValidationError,
+    validate_mappings,
+)
 
 
 def _mapping():
@@ -21,7 +25,11 @@ def _mapping():
         required_fields=("features.command_execution_shape", "requested.capability"),
         required_correlation=("same_event:source_to_action",),
         benign_near_miss_controls=("bnm.developer_code_explanation_only",),
-        external_mappings={"mitre_attack": [{"technique_id": "T1059", "mapping_strength": "analogical"}]},
+        external_mappings={
+            "mitre_attack": [
+                {"technique_id": "T1059", "mapping_strength": "analogical"}
+            ]
+        },
     )
 
 
@@ -37,7 +45,9 @@ def test_case_rule_mapping_public_export_is_payload_free():
 
 def test_validate_mappings_rejects_unknown_rule_id():
     mapping = _mapping()
-    bad = CaseRuleMapping(**{**mapping.to_init_dict(), "expected_rule_ids": ("cwfr-missing",)})
+    bad = CaseRuleMapping(
+        **{**mapping.to_init_dict(), "expected_rule_ids": ("cwfr-missing",)}
+    )
 
     with pytest.raises(MappingValidationError, match="unknown rule id"):
         validate_mappings((bad,), known_rule_ids={"cwfr-0106"})
@@ -45,7 +55,13 @@ def test_validate_mappings_rejects_unknown_rule_id():
 
 def test_validate_mappings_requires_telemetry_and_near_miss_controls():
     mapping = _mapping()
-    bad = CaseRuleMapping(**{**mapping.to_init_dict(), "required_fields": (), "benign_near_miss_controls": ()})
+    bad = CaseRuleMapping(
+        **{
+            **mapping.to_init_dict(),
+            "required_fields": (),
+            "benign_near_miss_controls": (),
+        }
+    )
 
     with pytest.raises(MappingValidationError, match="required_fields"):
         validate_mappings((bad,), known_rule_ids={"cwfr-0106", "cwfr-0002"})
