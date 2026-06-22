@@ -54,7 +54,9 @@ class FidesJudgeResult:
             raise ValueError("confidence must be between 0 and 1")
         object.__setattr__(self, "confidence", confidence)
 
-        object.__setattr__(self, "reason_codes", tuple(str(code) for code in self.reason_codes))
+        object.__setattr__(
+            self, "reason_codes", tuple(str(code) for code in self.reason_codes)
+        )
         if self.recommended_decision is None:
             recommended = _recommended_decision_for_verdict(verdict)
         else:
@@ -98,8 +100,7 @@ class FidesJudge(Protocol):
         facts: NormalizedFacts,
         *,
         rule_fides_checks: Sequence[Mapping[str, Any]] = (),
-    ) -> FidesJudgeResult:
-        ...
+    ) -> FidesJudgeResult: ...
 
 
 class DisabledFidesJudge:
@@ -137,7 +138,10 @@ class StaticFidesJudge:
 
     mode = FidesJudgeMode.TEST_DOUBLE
 
-    def __init__(self, results: Mapping[str, FidesJudgeResult | Mapping[str, object]] | None = None):
+    def __init__(
+        self,
+        results: Mapping[str, FidesJudgeResult | Mapping[str, object]] | None = None,
+    ):
         self.results = dict(results or {})
         self.calls = 0
 
@@ -155,13 +159,21 @@ class StaticFidesJudge:
             raw_verdict = result.get("verdict", FidesVerdict.SAFE)
             verdict = FidesVerdict.coerce(raw_verdict)
             raw_confidence = result.get("confidence")
-            confidence = float(str(raw_confidence)) if raw_confidence is not None else (1.0 if verdict == FidesVerdict.SAFE else 0.0)
+            confidence = (
+                float(str(raw_confidence))
+                if raw_confidence is not None
+                else (1.0 if verdict == FidesVerdict.SAFE else 0.0)
+            )
             raw_recommended = result.get("recommended_decision")
-            recommended_decision = None if raw_recommended is None else str(raw_recommended)
+            recommended_decision = (
+                None if raw_recommended is None else str(raw_recommended)
+            )
             return FidesJudgeResult(
                 verdict=verdict,
                 confidence=confidence,
-                reason_codes=tuple(str(code) for code in result.get("reason_codes", ())),
+                reason_codes=tuple(
+                    str(code) for code in result.get("reason_codes", ())
+                ),
                 recommended_decision=recommended_decision,
                 latency_ms=result.get("latency_ms"),
                 provider_calls=0,
@@ -174,7 +186,6 @@ class StaticFidesJudge:
             recommended_decision=Decision.ALLOW,
             provider_calls=0,
         )
-
 
 
 def _as_test_double_result(result: FidesJudgeResult) -> FidesJudgeResult:
@@ -193,11 +204,17 @@ def _as_test_double_result(result: FidesJudgeResult) -> FidesJudgeResult:
 def _tuple_match(actual: str | None, allowed: object) -> bool:
     if allowed in (None, (), [], set(), frozenset()):
         return True
-    values = {str(item) for item in allowed} if isinstance(allowed, (list, tuple, set, frozenset)) else {str(allowed)}
+    values = (
+        {str(item) for item in allowed}
+        if isinstance(allowed, (list, tuple, set, frozenset))
+        else {str(allowed)}
+    )
     return actual in values
 
 
-def _matches_expected_fields(source: Mapping[str, Any], expected: Mapping[str, Any] | None) -> bool:
+def _matches_expected_fields(
+    source: Mapping[str, Any], expected: Mapping[str, Any] | None
+) -> bool:
     if not expected:
         return True
     for key, expected_value in expected.items():
@@ -209,7 +226,9 @@ def _matches_expected_fields(source: Mapping[str, Any], expected: Mapping[str, A
 def _matches_test_double_rule(case: AttackCase, rule: Mapping[str, Any]) -> bool:
     match = rule.get("match", {})
     if not isinstance(match, Mapping) or not match:
-        raise ValueError("FIDES test-double evidence rules require a non-empty match mapping")
+        raise ValueError(
+            "FIDES test-double evidence rules require a non-empty match mapping"
+        )
     if not _tuple_match(case.case_id, match.get("case_ids")):
         return False
     if not _tuple_match(case.dataset_id, match.get("dataset_ids")):
@@ -234,9 +253,13 @@ def _test_double_result_from_rule(rule: Mapping[str, Any]) -> FidesJudgeResult:
     if not reason_codes:
         reason_codes = (f"fides.test_double.{rule_id}",)
     if int(rule.get("provider_calls") or 0) != 0:
-        raise ValueError("FIDES test-double evidence rules must declare provider_calls as 0 or omit it")
+        raise ValueError(
+            "FIDES test-double evidence rules must declare provider_calls as 0 or omit it"
+        )
     if rule.get("judge_transcript") is not None:
-        raise ValueError("FIDES test-double evidence rules must not include judge transcripts")
+        raise ValueError(
+            "FIDES test-double evidence rules must not include judge transcripts"
+        )
     latency_value = rule.get("latency_ms", 0.0)
     latency_ms = None if latency_value is None else float(latency_value)
     recommended = rule.get("recommended_decision")
@@ -244,7 +267,9 @@ def _test_double_result_from_rule(rule: Mapping[str, Any]) -> FidesJudgeResult:
         verdict=FidesVerdict.coerce(rule.get("verdict", FidesVerdict.UNSAFE)),
         confidence=float(rule.get("confidence", 0.9)),
         reason_codes=reason_codes,
-        recommended_decision=None if recommended is None else Decision.coerce(recommended),
+        recommended_decision=(
+            None if recommended is None else Decision.coerce(recommended)
+        ),
         latency_ms=latency_ms,
         provider_calls=0,
         judge_transcript=None,
@@ -263,7 +288,9 @@ def build_test_double_evidence_results(
     The gate still invokes FIDES only after WARDEN allows a case.
     """
     results: dict[str, FidesJudgeResult] = {}
-    ordered_cases = tuple(sorted(cases, key=lambda case: (case.dataset_id, case.case_id)))
+    ordered_cases = tuple(
+        sorted(cases, key=lambda case: (case.dataset_id, case.case_id))
+    )
     for raw_rule in rules:
         rule = dict(raw_rule)
         max_catches = rule.get("max_catches")
@@ -325,7 +352,9 @@ class ProviderBackedFidesJudge:
             rule_questions=rule_fides_checks,
             warden_miss_context=context,
         )
-        response = self.provider.judge(prompt, case_id=facts.case_id, request_id=f"fides-{self.calls}")
+        response = self.provider.judge(
+            prompt, case_id=facts.case_id, request_id=f"fides-{self.calls}"
+        )
         parsed = parse_fides_judge_response(response.text)
         return FidesJudgeResult(
             verdict=parsed["verdict"],
@@ -353,7 +382,9 @@ def build_fides_judge(
     if judge_mode == FidesJudgeMode.PROVIDER_PLACEHOLDER:
         return ProviderPlaceholderFidesJudge()
     if judge_mode == FidesJudgeMode.COPILOT_SDK:
-        configured_provider = provider or CopilotSdkJudgeProvider(provider_config or JudgeProviderConfig(provider="copilot_sdk"))
+        configured_provider = provider or CopilotSdkJudgeProvider(
+            provider_config or JudgeProviderConfig(provider="copilot_sdk")
+        )
         return ProviderBackedFidesJudge(configured_provider)
     raise ValueError(f"unsupported FIDES judge mode: {mode}")
 
@@ -370,7 +401,11 @@ def _decision_rank(decision: Decision | str) -> int:
 def _more_restrictive_decision(left: Decision | str, right: Decision | str) -> Decision:
     left_decision = Decision.coerce(left)
     right_decision = Decision.coerce(right)
-    return left_decision if _decision_rank(left_decision) >= _decision_rank(right_decision) else right_decision
+    return (
+        left_decision
+        if _decision_rank(left_decision) >= _decision_rank(right_decision)
+        else right_decision
+    )
 
 
 def _recommended_decision_for_verdict(verdict: FidesVerdict) -> Decision:
@@ -381,7 +416,9 @@ def _recommended_decision_for_verdict(verdict: FidesVerdict) -> Decision:
     return Decision.ALLOW
 
 
-def _serialized_pending_fides_checks(pending: Sequence[PendingFidesCheck]) -> tuple[dict[str, Any], ...]:
+def _serialized_pending_fides_checks(
+    pending: Sequence[PendingFidesCheck],
+) -> tuple[dict[str, Any], ...]:
     return tuple(
         {
             "rule_id": item.rule_id,
@@ -405,7 +442,10 @@ def _unique_strings(values: Iterable[str]) -> tuple[str, ...]:
 
 
 def _is_untrusted(facts: NormalizedFacts) -> bool:
-    return "untrusted" in facts.trust_labels or any(origin not in facts.policy.get("trusted_origins", ()) for origin in facts.origin_labels)
+    return "untrusted" in facts.trust_labels or any(
+        origin not in facts.policy.get("trusted_origins", ())
+        for origin in facts.origin_labels
+    )
 
 
 def _requested_capability_allowed(facts: NormalizedFacts) -> bool | None:
@@ -415,7 +455,9 @@ def _requested_capability_allowed(facts: NormalizedFacts) -> bool | None:
     requested = facts.requested.get("capability") or facts.requested.get("tool")
     if requested is None:
         return None
-    allowed_caps = tuple(facts.policy.get("allowed_capabilities", ())) or tuple(facts.policy.get("allowed_tools", ()))
+    allowed_caps = tuple(facts.policy.get("allowed_capabilities", ())) or tuple(
+        facts.policy.get("allowed_tools", ())
+    )
     return str(requested) in allowed_caps
 
 
@@ -434,7 +476,9 @@ def _default_rule_engine() -> RuleEngine:
     return RuleEngine(load_rules(rules_root()))
 
 
-def _facts_to_trace_and_policy(facts: NormalizedFacts) -> tuple[tuple[TraceEvent, ...], PolicyContext]:
+def _facts_to_trace_and_policy(
+    facts: NormalizedFacts,
+) -> tuple[tuple[TraceEvent, ...], PolicyContext]:
     schema_shape = facts.features.get("schema_shape")
     if schema_shape in {"tool_plan_like", "tool_plan"}:
         schema_shape = "tool_plan_like_json"
@@ -442,7 +486,9 @@ def _facts_to_trace_and_policy(facts: NormalizedFacts) -> tuple[tuple[TraceEvent
         schema_shape = "tool_plan_like_json"
     origin = facts.origin_labels[0] if facts.origin_labels else "unknown"
     text = facts.text or ""
-    requested_capability = facts.requested.get("capability") or facts.requested.get("tool")
+    requested_capability = facts.requested.get("capability") or facts.requested.get(
+        "tool"
+    )
     requested_sink = facts.requested.get("sink")
     event = TraceEvent(
         event_id=facts.case_id,
@@ -450,27 +496,47 @@ def _facts_to_trace_and_policy(facts: NormalizedFacts) -> tuple[tuple[TraceEvent
         surface=facts.surface,
         text=text,
         schema_shape=str(schema_shape) if schema_shape is not None else None,
-        capability=str(requested_capability) if requested_capability is not None else None,
+        capability=(
+            str(requested_capability) if requested_capability is not None else None
+        ),
         sink=str(requested_sink) if requested_sink is not None else None,
         canary_present=bool(facts.features.get("canary_present")),
         integrity="low" if "untrusted" in facts.trust_labels else "high",
-        consequential_action=bool(facts.features.get("tool_plan_shape")) or bool(facts.requested.get("action")) or bool(requested_capability),
-        metadata={**dict(facts.features), "requested": dict(facts.requested), "policy": dict(facts.policy)},
+        consequential_action=bool(facts.features.get("tool_plan_shape"))
+        or bool(facts.requested.get("action"))
+        or bool(requested_capability),
+        metadata={
+            **dict(facts.features),
+            "requested": dict(facts.requested),
+            "policy": dict(facts.policy),
+        },
     )
     policy = PolicyContext(
-        allowed_capabilities=tuple(str(item) for item in facts.policy.get("allowed_capabilities", ())),
-        allowed_canary_sinks=tuple(str(item) for item in facts.policy.get("allowed_sinks", ())),
-        trusted_origins=tuple(str(item) for item in facts.policy.get("trusted_origins", ())),
-        permitted_sinks=tuple(str(item) for item in facts.policy.get("allowed_sinks", ())),
+        allowed_capabilities=tuple(
+            str(item) for item in facts.policy.get("allowed_capabilities", ())
+        ),
+        allowed_canary_sinks=tuple(
+            str(item) for item in facts.policy.get("allowed_sinks", ())
+        ),
+        trusted_origins=tuple(
+            str(item) for item in facts.policy.get("trusted_origins", ())
+        ),
+        permitted_sinks=tuple(
+            str(item) for item in facts.policy.get("allowed_sinks", ())
+        ),
     )
     return (event,), policy
 
 
-def _warden_gate_from_rule_decision(stack_name: StackName, rule_decision: RuleDecision) -> GateDecision:
+def _warden_gate_from_rule_decision(
+    stack_name: StackName, rule_decision: RuleDecision
+) -> GateDecision:
     if not rule_decision.hits:
         return GateDecision(stack=stack_name, decision=Decision.ALLOW)
     rule_ids = tuple(hit.rule_id for hit in rule_decision.hits)
-    reason_codes = tuple(signal for hit in rule_decision.hits for signal in hit.matched_signals)
+    reason_codes = tuple(
+        signal for hit in rule_decision.hits for signal in hit.matched_signals
+    )
     return GateDecision(
         stack=stack_name,
         decision=rule_decision.final_action,
@@ -518,7 +584,9 @@ def evaluate_warden(
     stack: StackName | str = StackName.YARA_RULES,
     rule_engine: RuleEngine | None = None,
 ) -> GateDecision:
-    warden, _rule_decision = _evaluate_warden_with_rule_decision(facts, stack, rule_engine=rule_engine)
+    warden, _rule_decision = _evaluate_warden_with_rule_decision(
+        facts, stack, rule_engine=rule_engine
+    )
     return warden
 
 
@@ -559,11 +627,19 @@ def evaluate_stack(
             _recommended_decision_for_verdict(FidesVerdict.coerce(verdict.verdict)),
             Decision.coerce(verdict.recommended_decision),
         )
-        attributed_rule_ids = _unique_strings(item.rule_id for item in rule_decision.pending_fides)
-        attributed_reason_codes = _unique_strings((
-            *verdict.reason_codes,
-            *(str(check["name"]) for check in pending_checks),
-        )) if pending_checks else verdict.reason_codes
+        attributed_rule_ids = _unique_strings(
+            item.rule_id for item in rule_decision.pending_fides
+        )
+        attributed_reason_codes = (
+            _unique_strings(
+                (
+                    *verdict.reason_codes,
+                    *(str(check["name"]) for check in pending_checks),
+                )
+            )
+            if pending_checks
+            else verdict.reason_codes
+        )
         if effective_decision == Decision.BLOCK:
             return GateDecision(
                 stack=StackName.RULES_PLUS_FIDES,
@@ -609,4 +685,7 @@ def evaluate_case(
     rule_engine: RuleEngine | None = None,
 ) -> tuple[GateDecision, ...]:
     facts = NormalizedFacts.from_attack_case(case)
-    return tuple(evaluate_stack(facts, stack, fides_judge=fides_judge, rule_engine=rule_engine) for stack in stacks)
+    return tuple(
+        evaluate_stack(facts, stack, fides_judge=fides_judge, rule_engine=rule_engine)
+        for stack in stacks
+    )

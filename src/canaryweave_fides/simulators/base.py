@@ -33,9 +33,13 @@ class SimulationResult:
         }
 
 
-def simulate_case(case: AttackCase, simulator: str, fides_judge: FidesJudge | None = None) -> SimulationResult:
+def simulate_case(
+    case: AttackCase, simulator: str, fides_judge: FidesJudge | None = None
+) -> SimulationResult:
     facts = NormalizedFacts.from_attack_case(case)
-    decision = evaluate_stack(facts, StackName.RULES_PLUS_FIDES, fides_judge=fides_judge)
+    decision = evaluate_stack(
+        facts, StackName.RULES_PLUS_FIDES, fides_judge=fides_judge
+    )
     context_entered = decision.decision == Decision.ALLOW
     is_attack = case.case_kind.value == "attack"
     attack_succeeded = bool(context_entered and is_attack)

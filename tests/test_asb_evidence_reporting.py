@@ -10,7 +10,14 @@ from canaryweave_fides.gate import evaluate_stack
 from canaryweave_fides.reporting import build_public_report
 
 
-def _load_asb_case(tmp_path, *, text: str, label: str = "attack", category: str = "dataset_native", surface: str = "api_message"):
+def _load_asb_case(
+    tmp_path,
+    *,
+    text: str,
+    label: str = "attack",
+    category: str = "dataset_native",
+    surface: str = "api_message",
+):
     path = tmp_path / "records.jsonl"
     record = {
         "id": "local-fixture-001",
@@ -54,13 +61,20 @@ def test_asb_adapter_attaches_public_safe_expected_rule_metadata(tmp_path):
 
 
 def test_asb_instruction_shape_can_reach_existing_instruction_rule(tmp_path):
-    case = _load_asb_case(tmp_path, text="policy instruction hierarchy override structure")
+    case = _load_asb_case(
+        tmp_path, text="policy instruction hierarchy override structure"
+    )
     facts = NormalizedFacts.from_attack_case(case)
 
     assert case.attack_category == "mcp_prompt_boundary/instruction_hierarchy_violation"
     assert case.ground_truth is not None
     assert case.ground_truth.expected_rule_ids == ("cwfr-0003",)
-    assert facts.origin_labels[0] in {"resource_content", "tool_output", "server_manifest", "server_sampling"}
+    assert facts.origin_labels[0] in {
+        "resource_content",
+        "tool_output",
+        "server_manifest",
+        "server_sampling",
+    }
 
     decision = evaluate_stack(facts, StackName.YARA_RULES)
 
@@ -68,7 +82,9 @@ def test_asb_instruction_shape_can_reach_existing_instruction_rule(tmp_path):
     assert "cwfr-0003" in decision.rule_ids
 
 
-def test_asb_adapter_prioritizes_specific_secret_evidence_over_generic_api_terms(tmp_path):
+def test_asb_adapter_prioritizes_specific_secret_evidence_over_generic_api_terms(
+    tmp_path,
+):
     case = _load_asb_case(tmp_path, text="credential exposure api key structure")
 
     assert case.attack_category == "mcp_data_flow/credential_or_secret_exposure"
@@ -77,7 +93,9 @@ def test_asb_adapter_prioritizes_specific_secret_evidence_over_generic_api_terms
 
 
 def test_asb_adapter_does_not_map_generic_request_text_to_network_evidence(tmp_path):
-    case = _load_asb_case(tmp_path, text="benign structural request metadata", label="attack")
+    case = _load_asb_case(
+        tmp_path, text="benign structural request metadata", label="attack"
+    )
 
     assert case.safe_features["network_request_shape"] is False
     assert case.attack_category == "dataset_native"
@@ -85,7 +103,9 @@ def test_asb_adapter_does_not_map_generic_request_text_to_network_evidence(tmp_p
     assert case.ground_truth.expected_rule_ids == ()
 
 
-def test_asb_adapter_does_not_attach_credential_rule_to_exfiltration_only_shape(tmp_path):
+def test_asb_adapter_does_not_attach_credential_rule_to_exfiltration_only_shape(
+    tmp_path,
+):
     case = _load_asb_case(tmp_path, text="external upload structure", label="attack")
 
     assert case.safe_features["exfiltration_shape"] is True
@@ -95,7 +115,9 @@ def test_asb_adapter_does_not_attach_credential_rule_to_exfiltration_only_shape(
     assert "required_fields" not in case.ground_truth.labels
 
 
-def test_asb_native_schema_fields_are_safely_mapped_without_raw_payload_export(tmp_path):
+def test_asb_native_schema_fields_are_safely_mapped_without_raw_payload_export(
+    tmp_path,
+):
     case = _load_record(
         tmp_path,
         {
@@ -123,7 +145,9 @@ def test_asb_native_schema_fields_are_safely_mapped_without_raw_payload_export(t
     assert "system_admin_agent" not in public_blob
 
 
-def test_asb_native_benign_schema_is_classified_as_benign_without_expected_rule(tmp_path):
+def test_asb_native_benign_schema_is_classified_as_benign_without_expected_rule(
+    tmp_path,
+):
     case = _load_record(
         tmp_path,
         {
@@ -193,11 +217,26 @@ def test_asb_native_attack_schema_still_reaches_warden_rules(tmp_path):
 
 
 def test_asb_adapter_derives_public_safe_incident_inspired_shapes(tmp_path):
-    protected = _load_asb_case(tmp_path / "protected", text="extract protected system policy context", label="attack")
-    destructive = _load_asb_case(tmp_path / "destructive", text="delete wipe reset project resources", label="attack")
-    deceptive = _load_asb_case(tmp_path / "deceptive", text="target profile impersonation lure deception", label="attack")
+    protected = _load_asb_case(
+        tmp_path / "protected",
+        text="extract protected system policy context",
+        label="attack",
+    )
+    destructive = _load_asb_case(
+        tmp_path / "destructive",
+        text="delete wipe reset project resources",
+        label="attack",
+    )
+    deceptive = _load_asb_case(
+        tmp_path / "deceptive",
+        text="target profile impersonation lure deception",
+        label="attack",
+    )
 
-    assert protected.attack_category == "mcp_prompt_boundary/protected_context_exfiltration"
+    assert (
+        protected.attack_category
+        == "mcp_prompt_boundary/protected_context_exfiltration"
+    )
     assert protected.ground_truth is not None
     assert protected.ground_truth.expected_rule_ids == ("cwfr-0108",)
     assert protected.safe_features["protected_context_extraction_shape"] is True
@@ -229,10 +268,22 @@ def test_public_report_includes_expected_rule_evidence_without_case_rows():
                 "attack_category": "mcp_execution/command_or_code_execution_request",
                 "surface": "api_message",
                 "iteration": 0,
-                "ground_truth": {"expected_rule_ids": ["cwfr-0106"], "labels": {"required_fields": []}},
-                "safe_features": {"command_execution_shape": True, "requested_capability": "execute_code"},
+                "ground_truth": {
+                    "expected_rule_ids": ["cwfr-0106"],
+                    "labels": {"required_fields": []},
+                },
+                "safe_features": {
+                    "command_execution_shape": True,
+                    "requested_capability": "execute_code",
+                },
                 "policy_context": {},
-                "decisions": [{"stack": "yara_rules", "decision": "block", "rule_ids": ["cwfr-0106"]}],
+                "decisions": [
+                    {
+                        "stack": "yara_rules",
+                        "decision": "block",
+                        "rule_ids": ["cwfr-0106"],
+                    }
+                ],
             },
             {
                 "case_id": "mapped.miss",
@@ -241,10 +292,15 @@ def test_public_report_includes_expected_rule_evidence_without_case_rows():
                 "attack_category": "mcp_network/unapproved_network_request",
                 "surface": "api_message",
                 "iteration": 0,
-                "ground_truth": {"expected_rule_ids": ["cwfr-0107"], "labels": {"required_fields": []}},
+                "ground_truth": {
+                    "expected_rule_ids": ["cwfr-0107"],
+                    "labels": {"required_fields": []},
+                },
                 "safe_features": {"network_request_shape": True},
                 "policy_context": {},
-                "decisions": [{"stack": "yara_rules", "decision": "allow", "rule_ids": []}],
+                "decisions": [
+                    {"stack": "yara_rules", "decision": "allow", "rule_ids": []}
+                ],
             },
             {
                 "case_id": "unmapped",
@@ -256,7 +312,9 @@ def test_public_report_includes_expected_rule_evidence_without_case_rows():
                 "ground_truth": {"expected_rule_ids": [], "labels": {}},
                 "safe_features": {},
                 "policy_context": {},
-                "decisions": [{"stack": "yara_rules", "decision": "allow", "rule_ids": []}],
+                "decisions": [
+                    {"stack": "yara_rules", "decision": "allow", "rule_ids": []}
+                ],
             },
         ],
     }
@@ -270,7 +328,12 @@ def test_public_report_includes_expected_rule_evidence_without_case_rows():
     assert evidence["expected_rule_misses"] == 1
     assert evidence["expected_rule_hit_rate"] == 0.5
     assert evidence["by_dataset"]["asb"]["cases_with_expected_rules"] == 2
-    assert evidence["by_category"]["mcp_network/unapproved_network_request"]["expected_rule_misses"] == 1
+    assert (
+        evidence["by_category"]["mcp_network/unapproved_network_request"][
+            "expected_rule_misses"
+        ]
+        == 1
+    )
     assert evidence["case_level_rows_included"] is False
     assert "mapped.hit" not in str(evidence)
 
@@ -290,10 +353,19 @@ def test_public_report_filters_non_public_expected_rule_ids():
                 "attack_category": "mcp_execution/command_or_code_execution_request",
                 "surface": "api_message",
                 "iteration": 0,
-                "ground_truth": {"expected_rule_ids": ["cwfr-0106", "native-private-rule"], "labels": {}},
+                "ground_truth": {
+                    "expected_rule_ids": ["cwfr-0106", "native-private-rule"],
+                    "labels": {},
+                },
                 "safe_features": {"command_execution_shape": True},
                 "policy_context": {},
-                "decisions": [{"stack": "yara_rules", "decision": "block", "rule_ids": ["cwfr-0106"]}],
+                "decisions": [
+                    {
+                        "stack": "yara_rules",
+                        "decision": "block",
+                        "rule_ids": ["cwfr-0106"],
+                    }
+                ],
             },
         ],
     }
@@ -323,8 +395,16 @@ def test_public_report_includes_false_positive_diagnostics_without_case_rows():
                 "safe_features": {"command_execution_shape": True},
                 "policy_context": {},
                 "decisions": [
-                    {"stack": "yara_rules", "decision": "block", "rule_ids": ["cwfr-0106", "cwfr-0003"]},
-                    {"stack": "rules_plus_fides", "decision": "block", "rule_ids": ["cwfr-0106"]},
+                    {
+                        "stack": "yara_rules",
+                        "decision": "block",
+                        "rule_ids": ["cwfr-0106", "cwfr-0003"],
+                    },
+                    {
+                        "stack": "rules_plus_fides",
+                        "decision": "block",
+                        "rule_ids": ["cwfr-0106"],
+                    },
                 ],
             },
             {
@@ -337,7 +417,9 @@ def test_public_report_includes_false_positive_diagnostics_without_case_rows():
                 "ground_truth": {"expected_rule_ids": [], "labels": {}},
                 "safe_features": {},
                 "policy_context": {},
-                "decisions": [{"stack": "yara_rules", "decision": "allow", "rule_ids": []}],
+                "decisions": [
+                    {"stack": "yara_rules", "decision": "allow", "rule_ids": []}
+                ],
             },
             {
                 "case_id": "attack.blocked",
@@ -349,7 +431,13 @@ def test_public_report_includes_false_positive_diagnostics_without_case_rows():
                 "ground_truth": {"expected_rule_ids": ["cwfr-0106"], "labels": {}},
                 "safe_features": {"command_execution_shape": True},
                 "policy_context": {},
-                "decisions": [{"stack": "yara_rules", "decision": "block", "rule_ids": ["cwfr-0106"]}],
+                "decisions": [
+                    {
+                        "stack": "yara_rules",
+                        "decision": "block",
+                        "rule_ids": ["cwfr-0106"],
+                    }
+                ],
             },
         ],
     }
@@ -363,7 +451,12 @@ def test_public_report_includes_false_positive_diagnostics_without_case_rows():
     assert diagnostics["by_rule"]["cwfr-0106"]["false_positive_decisions"] == 2
     assert diagnostics["by_rule"]["cwfr-0003"]["false_positive_decisions"] == 1
     assert diagnostics["by_dataset"]["asb"]["false_positive_decisions"] == 2
-    assert diagnostics["by_category"]["mcp_execution/command_or_code_execution_request"]["false_positive_decisions"] == 2
+    assert (
+        diagnostics["by_category"]["mcp_execution/command_or_code_execution_request"][
+            "false_positive_decisions"
+        ]
+        == 2
+    )
     assert diagnostics["case_level_rows_included"] is False
     assert "benign.blocked" not in str(diagnostics)
 

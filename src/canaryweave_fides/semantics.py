@@ -5,7 +5,6 @@ import difflib
 import math
 import re
 
-
 _STOPWORDS = {
     "a",
     "an",

@@ -9,7 +9,14 @@ from typing import Any, Iterable, Mapping, Sequence
 from .adapters import AdapterConfig, DatasetAdapter, SyntheticAdapter
 from .cases import AttackCase, GroundTruth, _public_safe
 from .decisions import Decision, GateDecision, StackName
-from .gate import FidesJudge, FidesJudgeMode, StaticFidesJudge, build_fides_judge, build_test_double_evidence_results, evaluate_case
+from .gate import (
+    FidesJudge,
+    FidesJudgeMode,
+    StaticFidesJudge,
+    build_fides_judge,
+    build_test_double_evidence_results,
+    evaluate_case,
+)
 from .rule_engine import RuleEngine
 
 
@@ -27,12 +34,22 @@ class EvaluationRunConfig:
     )
 
     def __post_init__(self) -> None:
-        adapters = tuple(self.adapters) if self.adapters else (SyntheticAdapter(AdapterConfig()),)
+        adapters = (
+            tuple(self.adapters)
+            if self.adapters
+            else (SyntheticAdapter(AdapterConfig()),)
+        )
         object.__setattr__(self, "adapters", adapters)
         object.__setattr__(self, "iterations", int(self.iterations))
         object.__setattr__(self, "fides_mode", FidesJudgeMode.coerce(self.fides_mode))
-        object.__setattr__(self, "fides_test_double_evidence_rules", tuple(dict(rule) for rule in self.fides_test_double_evidence_rules))
-        object.__setattr__(self, "stacks", tuple(StackName.coerce(stack) for stack in self.stacks))
+        object.__setattr__(
+            self,
+            "fides_test_double_evidence_rules",
+            tuple(dict(rule) for rule in self.fides_test_double_evidence_rules),
+        )
+        object.__setattr__(
+            self, "stacks", tuple(StackName.coerce(stack) for stack in self.stacks)
+        )
         if self.iterations < 1:
             raise ValueError("iterations must be >= 1")
 
@@ -102,11 +119,17 @@ def _join_public_list(value: object) -> str:
     return str(value)
 
 
-def _private_review_rows(case: AttackCase, iteration: int, decisions: Sequence[GateDecision]) -> list[dict[str, object]]:
-    ground_truth = case.ground_truth if isinstance(case.ground_truth, GroundTruth) else None
+def _private_review_rows(
+    case: AttackCase, iteration: int, decisions: Sequence[GateDecision]
+) -> list[dict[str, object]]:
+    ground_truth = (
+        case.ground_truth if isinstance(case.ground_truth, GroundTruth) else None
+    )
     labels = dict(ground_truth.labels) if ground_truth is not None else {}
     required_fields = labels.get("required_fields") or ()
-    expected_rule_ids = ground_truth.expected_rule_ids if ground_truth is not None else ()
+    expected_rule_ids = (
+        ground_truth.expected_rule_ids if ground_truth is not None else ()
+    )
     raw_input = str(case.private_data.get("raw_input") or "")
     rows: list[dict[str, object]] = []
     for decision in decisions:
@@ -146,7 +169,18 @@ def _private_review_rows(case: AttackCase, iteration: int, decisions: Sequence[G
     return rows
 
 
-_PUBLIC_REVIEW_FORBIDDEN_ROOTS = {"artifacts", "conf", "data", "design", "docs", "research", "rules", "scripts", "src", "tests"}
+_PUBLIC_REVIEW_FORBIDDEN_ROOTS = {
+    "artifacts",
+    "conf",
+    "data",
+    "design",
+    "docs",
+    "research",
+    "rules",
+    "scripts",
+    "src",
+    "tests",
+}
 
 
 def _neutralize_csv_cell(value: object) -> object:
@@ -158,8 +192,14 @@ def _neutralize_csv_cell(value: object) -> object:
 
 
 def _validate_private_review_csv_path(path: Path) -> None:
-    if not path.is_absolute() and path.parts and path.parts[0] in _PUBLIC_REVIEW_FORBIDDEN_ROOTS:
-        raise ValueError("private reviewer CSV must be written to a controlled, non-public path")
+    if (
+        not path.is_absolute()
+        and path.parts
+        and path.parts[0] in _PUBLIC_REVIEW_FORBIDDEN_ROOTS
+    ):
+        raise ValueError(
+            "private reviewer CSV must be written to a controlled, non-public path"
+        )
     repo_root = Path(__file__).resolve().parents[2]
     try:
         resolved = path.resolve()
@@ -170,17 +210,23 @@ def _validate_private_review_csv_path(path: Path) -> None:
             resolved.relative_to(repo_root / public_root)
         except ValueError:
             continue
-        raise ValueError("private reviewer CSV must be written to a controlled, non-public path")
+        raise ValueError(
+            "private reviewer CSV must be written to a controlled, non-public path"
+        )
 
 
 def _write_private_review_csv(path: Path, rows: Sequence[Mapping[str, object]]) -> None:
     _validate_private_review_csv_path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=_PRIVATE_REVIEW_COLUMNS, extrasaction="ignore")
+        writer = csv.DictWriter(
+            handle, fieldnames=_PRIVATE_REVIEW_COLUMNS, extrasaction="ignore"
+        )
         writer.writeheader()
         for row in rows:
-            writer.writerow({key: _neutralize_csv_cell(value) for key, value in row.items()})
+            writer.writerow(
+                {key: _neutralize_csv_cell(value) for key, value in row.items()}
+            )
 
 
 def run_evaluation(
@@ -197,8 +243,13 @@ def run_evaluation(
         cases.extend(result.cases)
 
     test_double_results = {}
-    if config.fides_mode == FidesJudgeMode.TEST_DOUBLE and config.fides_test_double_evidence_rules:
-        test_double_results = build_test_double_evidence_results(cases, config.fides_test_double_evidence_rules)
+    if (
+        config.fides_mode == FidesJudgeMode.TEST_DOUBLE
+        and config.fides_test_double_evidence_rules
+    ):
+        test_double_results = build_test_double_evidence_results(
+            cases, config.fides_test_double_evidence_rules
+        )
     if fides_judge is not None:
         judge = fides_judge
     elif test_double_results:
@@ -214,13 +265,20 @@ def run_evaluation(
     for case in cases:
         for iteration in range(config.iterations):
             iteration_case = _with_iteration(case, iteration)
-            decisions = evaluate_case(iteration_case, stacks=stacks, fides_judge=judge, rule_engine=rule_engine)
+            decisions = evaluate_case(
+                iteration_case,
+                stacks=stacks,
+                fides_judge=judge,
+                rule_engine=rule_engine,
+            )
             summary = _summarize_decisions(decisions)
             provider_calls += int(summary["provider_calls"])
             for decision in decisions:
                 stack_counts[decision.stack.value][decision.decision.value] += 1
             if private_review_csv is not None:
-                private_review_rows.extend(_private_review_rows(iteration_case, iteration, decisions))
+                private_review_rows.extend(
+                    _private_review_rows(iteration_case, iteration, decisions)
+                )
             per_case_results.append(
                 {
                     "case_id": iteration_case.case_id,
@@ -257,7 +315,11 @@ def run_evaluation(
             "fixture_verdicts_configured": len(test_double_results),
             "provider_calls_enabled": False,
             "judge_transcripts_included": False,
-            "label": "FIDES TEST DOUBLE EVIDENCE MODE" if config.fides_mode == FidesJudgeMode.TEST_DOUBLE else "FIDES DISABLED",
+            "label": (
+                "FIDES TEST DOUBLE EVIDENCE MODE"
+                if config.fides_mode == FidesJudgeMode.TEST_DOUBLE
+                else "FIDES DISABLED"
+            ),
         },
         "defense_stacks": stack_counts,
         "adapter_results": [result.to_dict() for result in adapter_results],

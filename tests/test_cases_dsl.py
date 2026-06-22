@@ -38,7 +38,9 @@ def test_parse_groups_examples_by_block_with_header_facts():
 
 
 def test_parse_decodes_string_escapes():
-    examples = parse_cases('cases x {\n    "line\\nbreak \\u200b zero-width \\"quoted\\"" -> allow\n}')
+    examples = parse_cases(
+        'cases x {\n    "line\\nbreak \\u200b zero-width \\"quoted\\"" -> allow\n}'
+    )
     assert examples[0].detail == 'line\nbreak \u200b zero-width "quoted"'
 
 
@@ -71,8 +73,8 @@ def test_looks_like_tool_call_needs_object_and_keyword():
 
 def test_adapter_maps_structural_facts_to_case_fields():
     (example,) = parse_cases(
-        'cases tp [$from_untrusted_origin, $capability_denied] {\n'
-        '    "{tool: shell, args:{cmd:\'x\'}}" -> block\n}'
+        "cases tp [$from_untrusted_origin, $capability_denied] {\n"
+        "    \"{tool: shell, args:{cmd:'x'}}\" -> block\n}"
     )
     case = case_example_to_attack_case(example, index=0)
 
@@ -99,7 +101,9 @@ def test_adapter_benign_case_has_trusted_origin_and_no_capability():
 
 
 def test_adapter_canary_case_sets_canary_flow_fields():
-    (example,) = parse_cases('cases c [$canary_outside_sink] {\n    "leak the canary token" -> block\n}')
+    (example,) = parse_cases(
+        'cases c [$canary_outside_sink] {\n    "leak the canary token" -> block\n}'
+    )
     case = case_example_to_attack_case(example, index=0)
 
     assert case.safe_features["canary"] is True

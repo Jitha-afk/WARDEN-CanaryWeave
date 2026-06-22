@@ -2,7 +2,6 @@ from pathlib import Path
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 MILESTONE_1_FILES = [
@@ -19,10 +18,10 @@ MILESTONE_1_FILES = [
     "data/yara/baseline_regex.yaml",
     "data/yara/canaryweave_rules.yaml",
     "docs/thesis.md",
-    "docs/rule_authoring.md",
-    "docs/datasets.md",
-    "docs/fides_judge.md",
-    "docs/running_evals.md",
+    "docs/guides/rule_authoring.md",
+    "docs/guides/datasets.md",
+    "docs/guides/fides_judge.md",
+    "docs/guides/running_evals.md",
     "scripts/run_smoke.sh",
     "scripts/run_multi_dataset_eval.sh",
     "scripts/check_public_artifacts.py",
@@ -52,7 +51,9 @@ def test_harness_defaults_keep_private_material_disabled():
 
 
 def test_fides_prompt_contract_forbids_raw_inputs():
-    prompt = yaml.safe_load((ROOT / "data/prompts/fides_judge.yaml").read_text(encoding="utf-8"))
+    prompt = yaml.safe_load(
+        (ROOT / "data/prompts/fides_judge.yaml").read_text(encoding="utf-8")
+    )
     safety = prompt["safety"]
     assert safety["allow_raw_payload_text"] is False
     assert safety["allow_raw_prompts"] is False

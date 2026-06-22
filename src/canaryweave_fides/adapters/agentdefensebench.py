@@ -22,5 +22,7 @@ class AgentDefenseBenchAdapter(ASBAdapter):
             status=AdapterStatus.SKIPPED_MISSING_LOCAL_PATH,
             cases=(),
             message="agentdefensebench skipped: missing configured local dataset path",
-            safe_metadata={"absent_behavior": AdapterStatus.SKIPPED_MISSING_LOCAL_PATH.value},
+            safe_metadata={
+                "absent_behavior": AdapterStatus.SKIPPED_MISSING_LOCAL_PATH.value
+            },
         )

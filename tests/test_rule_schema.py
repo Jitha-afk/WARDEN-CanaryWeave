@@ -5,7 +5,6 @@ import pytest
 from canaryweave_fides.rule_loader import load_rule_file, load_rules
 from canaryweave_fides.rule_schema import RuleValidationError, validate_rule
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

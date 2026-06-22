@@ -21,15 +21,17 @@ def test_load_eval_config_supports_fides_test_double_rules():
 def test_cli_eval_fides_test_double_produces_incremental_catches(tmp_path):
     output = tmp_path / "fides-report.json"
 
-    code = main([
-        "eval",
-        "--config",
-        "data/evals/fides_test_double_gate.yaml",
-        "--iterations",
-        "1",
-        "--output",
-        str(output),
-    ])
+    code = main(
+        [
+            "eval",
+            "--config",
+            "data/evals/fides_test_double_gate.yaml",
+            "--iterations",
+            "1",
+            "--output",
+            str(output),
+        ]
+    )
 
     assert code == 0
     report = json.loads(output.read_text(encoding="utf-8"))

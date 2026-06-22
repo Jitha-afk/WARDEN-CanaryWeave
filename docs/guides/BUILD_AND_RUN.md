@@ -56,6 +56,56 @@ uv run warden warden test --input data/cases/smoke.cases
 uv run warden eval --output artifacts/evals/gate_eval_report.json
 ```
 
+### Security coverage benchmarks
+
+Clone external attack datasets (one-time setup):
+```bash
+cd ..
+git clone https://github.com/agiresearch/ASB.git
+git clone https://github.com/arunsanna/AgentDefense-Bench.git
+cd WARDEN-CanaryWeave
+```
+
+Run coverage benchmarks:
+```bash
+# MCPSecBench (510 MCP-specific attacks)
+uv run warden bench coverage --dataset mcp --path ../AgentDefense-Bench/mcp_specific/mcpsecbench_mcp_attacks.json
+
+# ASB (400 tool misuse attacks)
+uv run warden bench coverage --dataset asb --path ../ASB/data/all_attack_tools.jsonl
+
+# With FIDES test-double judge (measures maximum possible coverage)
+uv run warden bench coverage --dataset mcp --path ../AgentDefense-Bench/mcp_specific/mcpsecbench_mcp_attacks.json --fides
+
+# With real Copilot SDK judge (actual LLM reasoning, ~30s per missed case)
+uv run warden bench coverage --dataset mcp --path ../AgentDefense-Bench/mcp_specific/mcpsecbench_mcp_attacks.json --fides-live
+
+# Limit cases for quick testing
+uv run warden bench coverage --dataset mcp --path ../AgentDefense-Bench/mcp_specific/mcpsecbench_mcp_attacks.json --max-cases 20
+
+# JSON output for CI/automation
+uv run warden bench coverage --dataset asb --path ../ASB/data/all_attack_tools.jsonl --json
+```
+
+### MCP endpoint crawling
+
+```bash
+# Crawl a real MCP server (discovers tools, generates attacks, evaluates)
+uv run warden crawl --endpoint "npx @modelcontextprotocol/server-filesystem /tmp"
+
+# Crawl with FIDES live judge
+uv run warden crawl --endpoint "npx @modelcontextprotocol/server-filesystem /tmp" --fides-live
+
+# Crawl from config (multiple endpoints)
+uv run warden crawl --config conf/mcp_endpoints.yaml
+
+# Use dataset as mock MCP server
+uv run warden crawl --endpoint "uv run python -m canaryweave_fides.mock_mcp_server --dataset asb --path ../ASB/data/all_attack_tools.jsonl"
+
+# Save per-case detail
+uv run warden crawl --endpoint "..." --detail artifacts/crawl_detail.jsonl
+```
+
 ## Test
 
 ```bash

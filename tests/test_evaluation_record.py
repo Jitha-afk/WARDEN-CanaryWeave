@@ -10,7 +10,6 @@ from canaryweave_fides.models import EvaluationRecord, PolicyContext, TraceEvent
 from canaryweave_fides.rule_engine import RuleEngine, build_evaluation_record
 from canaryweave_fides.rule_loader import parse_ruleset
 
-
 _FACT_RULE = """rule UntrustedToolCall {
     meta:
         id          = cwfr-test-0001
@@ -27,16 +26,24 @@ def _engine() -> RuleEngine:
 
 
 def test_evaluate_record_fires_from_flat_facts_without_a_trace():
-    record = EvaluationRecord(text="", facts={"from_untrusted_origin": True, "tool_call_shape": True})
+    record = EvaluationRecord(
+        text="", facts={"from_untrusted_origin": True, "tool_call_shape": True}
+    )
 
     decision = _engine().evaluate_record(record)
 
     assert [hit.rule_name for hit in decision.hits] == ["UntrustedToolCall"]
-    assert set(decision.hits[0].matched_signals) == {"from_untrusted_origin", "tool_call_shape"}
+    assert set(decision.hits[0].matched_signals) == {
+        "from_untrusted_origin",
+        "tool_call_shape",
+    }
 
 
 def test_evaluate_record_allows_when_facts_absent():
-    record = EvaluationRecord(text="benign note", facts={"from_untrusted_origin": False, "tool_call_shape": False})
+    record = EvaluationRecord(
+        text="benign note",
+        facts={"from_untrusted_origin": False, "tool_call_shape": False},
+    )
 
     decision = _engine().evaluate_record(record)
 
@@ -75,6 +82,10 @@ def test_evaluate_and_evaluate_record_agree_on_a_trace():
     engine = _engine()
 
     via_trace = engine.evaluate(events, PolicyContext())
-    via_record = engine.evaluate_record(build_evaluation_record(events, PolicyContext()))
+    via_record = engine.evaluate_record(
+        build_evaluation_record(events, PolicyContext())
+    )
 
-    assert [hit.rule_name for hit in via_trace.hits] == [hit.rule_name for hit in via_record.hits]
+    assert [hit.rule_name for hit in via_trace.hits] == [
+        hit.rule_name for hit in via_record.hits
+    ]

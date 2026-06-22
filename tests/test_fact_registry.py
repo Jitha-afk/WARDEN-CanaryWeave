@@ -13,7 +13,6 @@ from canaryweave_fides.fact_registry import (
     is_fact,
 )
 
-
 EXPECTED_FACTS = (
     "from_untrusted_origin",
     "capability_denied",
@@ -45,7 +44,9 @@ def test_every_fact_has_a_summary_and_mcp_source():
 
 def test_is_fact_discriminates_known_and_unknown():
     assert is_fact("from_untrusted_origin")
-    assert not is_fact("command_execution_shape")  # a *_shape intent → semantics, not a fact
+    assert not is_fact(
+        "command_execution_shape"
+    )  # a *_shape intent → semantics, not a fact
     assert not is_fact("")
 
 
