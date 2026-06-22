@@ -342,6 +342,100 @@ The public report carries `security_metrics`, `incremental_metrics`,
 `disagreement_matrix`, `maintainability_metrics`, and `safety` blocks. The
 divergent stack vocabulary between the two is a [known gap](hld.md#8-known-post-refactor-gaps).
 
+---
+
+## FIDES Integration Modules (Phase 2)
+
+```mermaid
+classDiagram
+    class Lattice {
+        <<abstract>>
+        +leq(other) bool
+        +join(other) Lattice
+        +meet(other) Lattice
+    }
+    class IntegrityLattice {
+        TRUSTED
+        UNTRUSTED
+        +trusted() IntegrityLattice
+        +untrusted() IntegrityLattice
+    }
+    class ConfidentialityLattice {
+        PUBLIC
+        SECRET
+        +public() ConfidentialityLattice
+        +secret() ConfidentialityLattice
+    }
+    class PowersetLattice {
+        subset: frozenset
+        universe: frozenset
+        +join = intersection
+        +meet = union
+    }
+    class ProductLattice {
+        left: Lattice
+        right: Lattice
+        +integrity
+        +confidentiality
+    }
+    Lattice <|-- IntegrityLattice
+    Lattice <|-- ConfidentialityLattice
+    Lattice <|-- PowersetLattice
+    Lattice <|-- ProductLattice
+
+    class VariableStore {
+        +store(content, label) str
+        +retrieve(var_id) StoredVariable
+        +redacted_view(var_id) str
+        +should_hide(label) bool
+        +count int
+    }
+    class StoredVariable {
+        variable_id: str
+        content: str
+        label: ProductLattice
+        source: str
+        +is_trusted bool
+    }
+    VariableStore --> StoredVariable
+    StoredVariable --> ProductLattice
+
+    class MCPStdioClient {
+        +connect()
+        +list_tools() list~MCPToolSchema~
+        +list_resources() list
+        +disconnect()
+    }
+    class MCPToolSchema {
+        name: str
+        description: str
+        parameters: dict
+        +param_names() list
+        +param_types() dict
+    }
+    MCPStdioClient --> MCPToolSchema
+
+    class GeneratedAttack {
+        tool_name: str
+        attack_type: str
+        prompt: str
+    }
+    MCPToolSchema --> GeneratedAttack : adversarial_gen
+```
+
+### Module Details
+
+| Module | Classes / Functions | Purpose |
+|---|---|---|
+| `lattice.py` | `Lattice`, `IntegrityLattice`, `ConfidentialityLattice`, `PowersetLattice`, `ProductLattice`, `security_label()` | Formal IFC lattice with `leq/join/meet` |
+| `variable_store.py` | `VariableStore`, `StoredVariable`, `store_if_untrusted()` | Selective hiding behind `$VAR_n` handles |
+| `autonomy_metrics.py` | `TaskTrace`, `hitl_load()`, `tcr_at_k()`, `tcr_curve()`, `autonomy_summary()` | PRUDENTIA autonomy measurement |
+| `mcp_client.py` | `MCPStdioClient`, `MCPToolSchema`, `MCPCrawlResult`, `crawl_endpoint()` | MCP stdio client for endpoint discovery |
+| `adversarial_gen.py` | `GeneratedAttack`, `generate_attacks()` | Schema-aware attack prompt generation |
+| `mock_mcp_server.py` | `_load_tools()`, `_handle_message()`, `main()` | Wraps datasets as MCP stdio servers |
+| `adapters/benchmarks.py` | `load_asb_dataset()`, `load_mcpsecbench_dataset()`, `load_auto_dataset()`, `cases_to_facts()` | External dataset loaders with agent/MCP context |
+| `providers/copilot_sdk.py` | `CopilotSdkJudgeProvider.judge()`, `.complete()`, `_rest_judge()` | Copilot SDK + REST fallback |
+
 ## Terminology map
 
 Reconciles code symbols with the [`CONTEXT.md`](../../CONTEXT.md) glossary. The
@@ -363,3 +457,51 @@ glossary is canonical for prose; the code names are what you grep for.
 - [`design/rule_schema.md`](../../design/rule_schema.md) — authoritative `.war` schema.
 - [`docs/rule_authoring.md`](../rule_authoring.md) — author-facing guidance.
 - [ADR 0003](../adr/0003-collapse-to-facts-and-cases.md) — the refactor.
+
+---
+
+## FIDES Integration Modules (Phase 2)
+
+### `lattice.py` — Formal IFC Lattice
+- `Lattice` ABC with `leq()`, `join()`, `meet()`
+- `IntegrityLattice`: `{TRUSTED, UNTRUSTED}`, `T join U = U`
+- `ConfidentialityLattice`: `{PUBLIC, SECRET}`, `L join H = H`
+- `PowersetLattice`: reader sets, join = intersection
+- `ProductLattice`: combines integrity + confidentiality
+- `security_label()`, `trusted_public()`, `untrusted_secret()` helpers
+
+### `variable_store.py` — Variable Memory (Selective Hiding)
+- `VariableStore`: stores untrusted content behind `\` handles
+- `StoredVariable`: variable_id, content, label (ProductLattice), source
+- `store_if_untrusted()`: auto-hides if integrity = UNTRUSTED, passes through if TRUSTED
+- `redacted_view()`: safe representation for planning context
+
+### `autonomy_metrics.py` — PRUDENTIA Metrics
+- `TaskTrace`: task_id, completed, policy_violations
+- `hitl_load(traces)`: total interventions across completed tasks
+- `tcr_at_k(traces, k)`: task completion rate under k interventions
+- `tcr_curve(traces, max_k)`: full TCR@k curve for plotting
+- `autonomy_summary(traces)`: complete metrics dict
+
+### `mcp_client.py` — MCP Stdio Client
+- `MCPStdioClient`: connect, initialize, `tools/list`, `resources/list`, disconnect
+- `MCPToolSchema`: name, description, parameters, `param_names()`, `param_types()`
+- `crawl_endpoint(command)`: full crawl returning `MCPCrawlResult`
+
+### `adversarial_gen.py` — Schema-Aware Attack Generator
+- Generates attacks per tool based on parameter types:
+  - Path/file params: path traversal (3 templates)
+  - String params: prompt injection (3 templates)
+  - Any tool: capability escalation, social engineering (3 templates)
+  - Tool descriptions: poisoning check (1 template)
+
+### `mock_mcp_server.py` — Dataset-as-MCP-Server
+- Wraps ASB/MCPSecBench as stdio MCP server
+- Groups cases by category as mock "tools"
+- Supports `initialize`, `tools/list`, `resources/list`, `tools/call`
+
+### `adapters/benchmarks.py` — External Dataset Loaders
+- `load_asb_dataset()`: agent-aware loading with per-agent allowed capabilities
+- `load_mcpsecbench_dataset()`: MCP request context (method, tool name, arguments)
+- `load_auto_dataset()`: auto-detect format
+- `cases_to_facts()`: enriches NormalizedFacts with tool/capability context
