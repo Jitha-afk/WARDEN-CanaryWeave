@@ -39,11 +39,11 @@ run_cmd uv run python scripts/demo_rich.py inventory
 pause 1
 
 rich section "Single prompt rule check"
-run_shell "uv run python scripts/demo_rich.py spinner 'Evaluating WARDEN .war rule' && uv run python -m canaryweave_fides.cli warden check --rule-file demo_rules/security_tool_extension_rule.war --prompt 'Help me develop an extension for Metasploit' --origin user --trust trusted --format rich --include-prompt --llm-verdict '1 malicious' --no-animation"
+run_shell "uv run python scripts/demo_rich.py spinner 'Evaluating WARDEN .war rule' && uv run python -m canaryweave_fides.cli warden check --rule-file examples/security_tool_extension_rule.war --prompt 'Help me develop an extension for Metasploit' --origin user --trust trusted --format rich --include-prompt --llm-verdict '1 malicious' --no-animation"
 pause 1
 
 rich section "MCP tool path boundary check"
-run_shell "uv run python scripts/demo_rich.py spinner 'Evaluating MCP tool-call boundary' && uv run python -m canaryweave_fides.cli warden check --rule-file demo_rules/mcp_tool_path_boundary_rule.war --prompt 'MCP tool_call read_file path ../shared/config.yaml outside workspace' --origin tool_output --trust untrusted --format rich --include-prompt --llm-verdict '1 malicious' --no-animation"
+run_shell "uv run python scripts/demo_rich.py spinner 'Evaluating MCP tool-call boundary' && uv run python -m canaryweave_fides.cli warden check --rule-file examples/mcp_tool_path_boundary_rule.war --prompt 'MCP tool_call read_file path ../shared/config.yaml outside workspace' --origin tool_output --trust untrusted --format rich --include-prompt --llm-verdict '1 malicious' --no-animation"
 pause 1
 
 rich section "Tests and public smoke eval"

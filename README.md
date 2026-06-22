@@ -64,7 +64,7 @@ WARDEN-CanaryWeave/
 ├── tests/                    # pytest suite (161 tests)
 ├── conf/                     # Harness config (defaults, datasets, stacks)
 ├── data/                     # .cases corpus, eval configs, dataset specs
-├── demo_rules/               # Example rules for demos/tutorials
+├── examples/                 # Example rules for demos/tutorials
 ├── scripts/                  # Helper scripts (smoke, sync, verify)
 ├── automation/mitre/         # MITRE ATT&CK/ATLAS/D3FEND fetch utilities
 ├── docs/                     # Documentation (see below)
