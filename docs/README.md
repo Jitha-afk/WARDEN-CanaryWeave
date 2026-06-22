@@ -27,7 +27,7 @@ once in [`CONTEXT.md`](../CONTEXT.md).
 | [HLD](architecture/hld.md) | High-Level Design — system purpose and components. |
 | [LLD](architecture/lld.md) | Low-Level Design — modules, classes, algorithms, CLI surface. |
 | [DFD](architecture/dfd.md) | Data Flow Diagrams (Level 0–3). |
-| [MATH](architecture/MATH.md) | Mathematical foundations (lattice, similarity, metrics). |
+| [MATH](architecture/math.md) | Mathematical foundations (lattice, similarity, metrics). |
 | [GLOSSARY](GLOSSARY.md) | Field-by-field reference for every type, fact, and label. |
 
 ## Authoring rules & cases

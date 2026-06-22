@@ -83,10 +83,10 @@ docs/
 ├── GLOSSARY.md               # Field-by-field reference for every type/fact/label
 ├── CASE_STUDY.md             # Research case study: personas, results, architecture
 ├── architecture/
-│   ├── HLD.md                # High-Level Design (system purpose, components)
-│   ├── LLD.md                # Low-Level Design (modules, classes, algorithms)
-│   ├── DFD.md                # Data Flow Diagrams (Level 0-3)
-│   └── MATH.md               # Mathematical foundations (lattice, similarity, metrics)
+│   ├── hld.md                # High-Level Design (system purpose, components)
+│   ├── lld.md                # Low-Level Design (modules, classes, algorithms)
+│   ├── dfd.md                # Data Flow Diagrams (Level 0-3)
+│   └── math.md               # Mathematical foundations (lattice, similarity, metrics)
 ├── guides/
 │   ├── BUILD_AND_RUN.md      # Install, run, test, build commands
 │   ├── MCP_SETUP.md          # MCP endpoint config, trust model, crawling

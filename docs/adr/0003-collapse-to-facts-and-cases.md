@@ -149,7 +149,7 @@ field are removed; the frozen `facts` registry, the `.cases` parser, the
 flags migrate to `semantics`; redaction is stripped from the record, exports, and
 tests; `NormalizedTrace` collapses toward the flat `{text, facts}` projection
 (continuing issue #16's convergence). All 31 rules + 2 demo rules, the
-`data/yara/*` manifests, `docs/architecture/LLD.md`, `docs/guides/rule_authoring.md`, the
+`data/yara/*` manifests, `docs/architecture/lld.md`, `docs/guides/rule_authoring.md`, the
 `README`, and the rule/gate/FIDES tests are updated. Real MCP-wire fact extraction
 is documented future work; `tunables:` remains deferred. `CONTEXT.md` is the
 glossary of record.

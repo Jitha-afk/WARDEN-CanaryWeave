@@ -177,7 +177,7 @@ corpus) is wired into the baseline stack.
 ## Consequences
 
 A hard cut: the YAML loader, the four detection sections (`keywords`/`fides`
-become `patterns`/`judge`), and all 31 rules are rewritten; `docs/architecture/LLD.md`,
+become `patterns`/`judge`), and all 31 rules are rewritten; `docs/architecture/lld.md`,
 `docs/guides/rule_authoring.md`, the `README`, the `data/yara/*` manifests, and the rule
 and gate tests are updated to match. ADR 0001 is superseded. `tunables:`
 remains open as named future work.
