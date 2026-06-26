@@ -18,6 +18,7 @@ class StackName(_StringEnum):
     REGEX_BASELINE = "regex_baseline"
     YARA_RULES = "yara_rules"
     RULES_PLUS_FIDES = "rules_plus_fides"
+    FIDES_ONLY = "fides_only"
 
 
 class Decision(_StringEnum):
@@ -29,6 +30,7 @@ class Decision(_StringEnum):
 class BlockedBy(_StringEnum):
     REGEX = "regex"
     YARA_RULE = "yara_rule"
+    FIDES_IFC = "fides_ifc"
     FIDES_JUDGE = "fides_judge"
     NONE = "none"
 
@@ -53,6 +55,8 @@ class GateDecision:
     reason_codes: tuple[str, ...] = ()
     latency_ms: float | None = None
     provider_calls: int = 0
+    ifc_verdict: FidesVerdict | str = FidesVerdict.NOT_CALLED
+    ifc_policy_checks: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "stack", StackName.coerce(self.stack))
@@ -76,6 +80,12 @@ class GateDecision:
         if provider_calls < 0:
             raise ValueError("provider_calls must be non-negative")
         object.__setattr__(self, "provider_calls", provider_calls)
+        object.__setattr__(self, "ifc_verdict", FidesVerdict.coerce(self.ifc_verdict))
+        object.__setattr__(
+            self,
+            "ifc_policy_checks",
+            tuple(str(check) for check in self.ifc_policy_checks),
+        )
         if self.decision == Decision.ALLOW and self.blocked_by != BlockedBy.NONE:
             raise ValueError("allowed decisions must use blocked_by=none")
 
@@ -84,6 +94,7 @@ class GateDecision:
         decision = Decision.coerce(self.decision)
         blocked_by = BlockedBy.coerce(self.blocked_by)
         fides_verdict = FidesVerdict.coerce(self.fides_verdict)
+        ifc_verdict = FidesVerdict.coerce(self.ifc_verdict)
         return {
             "stack": stack.value,
             "decision": decision.value,
@@ -93,6 +104,8 @@ class GateDecision:
             "reason_codes": list(self.reason_codes),
             "latency_ms": self.latency_ms,
             "provider_calls": self.provider_calls,
+            "ifc_verdict": ifc_verdict.value,
+            "ifc_policy_checks": list(self.ifc_policy_checks),
         }
 
     @classmethod
@@ -106,4 +119,8 @@ class GateDecision:
             reason_codes=tuple(str(code) for code in data.get("reason_codes", ())),
             latency_ms=data.get("latency_ms"),
             provider_calls=int(data.get("provider_calls", 0)),
+            ifc_verdict=data.get("ifc_verdict", FidesVerdict.NOT_CALLED),
+            ifc_policy_checks=tuple(
+                str(check) for check in data.get("ifc_policy_checks", ())
+            ),
         )

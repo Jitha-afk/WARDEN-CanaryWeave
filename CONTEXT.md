@@ -23,21 +23,29 @@ The deterministic rule stack — regex baseline, YARA-style manifests, and `.war
 _Avoid_: rule service, detector engine
 
 **FIDES/IFC**:
-The optional layer applied only after WARDEN allows, in the `rules_plus_fides` stack. Comprises two distinct components:
+The IFC layer composed with WARDEN in the `rules_plus_fides` stack, and run standalone in the `fides_only` stack. Comprises two distinct components:
 
-(1) **FIDES Structural IFC** (`fides.py`): always-on deterministic checks using formal lattice operations — trusted-action policy (consequential actions must not stem from low-integrity or untrusted-origin data; enforced via `integrity_label.leq(T)`) and permitted-flow policy (restricted data may only reach permitted sinks; enforced via reader-set intersection). Uses the `lattice.py` abstractions: `IntegrityLattice`, `ConfidentialityLattice`, `PowersetLattice`, `ProductLattice`.
+(1) **FIDES Structural IFC** (`fides.py`): deterministic checks using formal lattice operations — trusted-action policy (consequential actions must not stem from low-integrity or untrusted-origin data; enforced via `integrity_label.leq(T)`) and permitted-flow policy (restricted data may only reach permitted sinks; enforced via reader-set intersection). Always computed and recorded as a layer verdict — even when WARDEN already blocked — and gates the decision by most-restrictive composition; it is the sole decider in `fides_only`. Uses the `lattice.py` abstractions: `IntegrityLattice`, `ConfidentialityLattice`, `PowersetLattice`, `ProductLattice`.
 
-(2) **FIDES Semantic Judge** (`gate.py:FidesJudge`): the LLM-as-judge escalation path, queried with the raw text, the facts, and the rule's `judge:` question when WARDEN allows but a `PendingFidesCheck` exists. Separate from the quarantined model it helps guard.
+(2) **FIDES Semantic Judge** (`gate.py:FidesJudge`): a constrained-output use of the Quarantined LLM — queried with the raw text, the facts, and the rule's `judge:` question only when a WARDEN rule missed deterministically but left a `PendingFidesCheck`. It guards the Planner LLM; it is not itself the protected model.
 
-_Avoid_: guardrail, LLM gate; conflating the two components — structural IFC is deterministic and always-on within the stack, the semantic judge is probabilistic and only invoked on WARDEN misses.
+_Avoid_: guardrail, LLM gate; conflating the two components — structural IFC is deterministic and always computed (and can gate by composition), the semantic judge is probabilistic and only invoked on WARDEN misses with a pending judge question.
 
 **Guard stack**:
-A named evaluation configuration compared apples-to-apples on the same NormalizedTrace: `no_guard`, `regex_baseline`, `yara_rules`, `rules_plus_fides`.
+A named evaluation configuration compared apples-to-apples on the same NormalizedTrace: `no_guard`, `regex_baseline`, `yara_rules`, `rules_plus_fides`, `fides_only`. `fides_only` runs Structural IFC alone with WARDEN skipped, isolating the IFC layer's standalone discriminative power.
 _Avoid_: pipeline, guard layer; the README's `regex_guard` / `structured_rule_guard` / `rules_plus_fides_ifc` (use the StackName values)
 
 **Gate**:
 The quarantined `query_llm` enforcement point: runs a guard stack as preflight, calls the quarantined model, runs the stack again as postflight, then FIDES — composing one shared evaluation core rather than re-sequencing it.
 _Avoid_: handler, middleware
+
+**Quarantined LLM** (`query_llm`):
+An isolated model call over untrusted data that may emit only a constrained output schema (a boolean verdict today; enum / field-extraction planned) defined by a rule's `judge:` variable. Tool-free and side-effect-free, so a compromised or injected response cannot propagate — only the narrow declared value escapes. The FIDES Semantic Judge is its boolean (malicious/benign) instance.
+_Avoid_: judge model, sandbox model; conflating it with the Planner — the quarantined model is the constrained helper, not the protected target.
+
+**Planner LLM**:
+The privileged orchestrator the stack protects; it never sees raw untrusted data, only constrained values from the Quarantined LLM or a gate decision. In the eval it appears solely as an isolated, tool-free *counterfactual showcase* — "had this prompt reached a real planner, here is what it would have done" — never with live tool or side-effect access.
+_Avoid_: main model, agent; the quarantined `query_llm` (that is the helper, this is the protected target).
 
 **AttackCase**:
 The case envelope (attack type, raw detail, expected outcome, policy context) a NormalizedTrace is derived from. Carries the raw prompt/tool text so a reader can see exactly what led to what outcome.

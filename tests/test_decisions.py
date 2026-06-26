@@ -25,6 +25,8 @@ def test_gate_decision_defaults_are_public_safe_and_json_serializable():
         "reason_codes": [],
         "latency_ms": None,
         "provider_calls": 0,
+        "ifc_verdict": "not_called",
+        "ifc_policy_checks": [],
     }
     json.dumps(public)
 
@@ -35,11 +37,13 @@ def test_gate_decision_represents_all_required_enum_values():
         "regex_baseline",
         "yara_rules",
         "rules_plus_fides",
+        "fides_only",
     ]
     assert [decision.value for decision in Decision] == ["allow", "quarantine", "block"]
     assert [blocked_by.value for blocked_by in BlockedBy] == [
         "regex",
         "yara_rule",
+        "fides_ifc",
         "fides_judge",
         "none",
     ]

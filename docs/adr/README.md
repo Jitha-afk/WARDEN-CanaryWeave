@@ -1,3 +1,4 @@
 - [ADR 0001: WARDEN rule grammar](0001-warden-rule-grammar.md) — superseded by 0002
 - [ADR 0002: WARDEN `.war` rule DSL (YARA-style)](0002-warden-rule-dsl.md) — amended by 0003
 - [ADR 0003: Collapse `.war` rules to one shape over a flat `{text + facts}` record](0003-collapse-to-facts-and-cases.md)
+- [ADR 0004: Structural IFC as an in-stack deterministic gate, plus a `fides_only` stack](0004-structural-ifc-in-stack-gate.md)

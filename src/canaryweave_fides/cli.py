@@ -27,7 +27,7 @@ from .providers import (
     default_copilot_home,
 )
 from .resources import rules_root
-from .rich_report import render_warden_rule_check, run_loading_step
+from .rich_report import render_gate_report, run_loading_step
 from .rule_engine import RuleEngine
 from .rule_loader import load_rules
 
@@ -373,14 +373,14 @@ def _warden_check(args: argparse.Namespace) -> int:
             args.output.write_text(
                 json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
-        render_warden_rule_check(
+        render_gate_report(
             prompt=prompt,
             facts=facts,
-            decision=decision.to_dict(),
+            warden_decision=decision.to_dict(),
             rule_engine=rule_engine,
             rule_path=args.rule_file,
             prompt_included=bool(args.include_prompt),
-            llm_verdict=args.llm_verdict,
+            explain=getattr(args, "explain", False),
         )
     else:
         _write_json(args.output, payload)
@@ -431,45 +431,58 @@ def _judge_one(args: argparse.Namespace) -> int:
         "fides_decision": fides_decision.to_dict(),
     }
     if getattr(args, "format", "json") == "rich":
-        from .rich_report import render_warden_rule_check
+        from .rich_report import render_gate_report
+        from .planner import run_planner_showcase
 
         run_loading_step(
             "Evaluating WARDEN + FIDES gate...",
             enabled=not getattr(args, "no_animation", False),
         )
-        # Show the FIDES decision (the full stack) in rich format
-        render_warden_rule_check(
+        ladder: list[tuple[str, str]] = []
+        for stack in (
+            StackName.NO_GUARD,
+            StackName.REGEX_BASELINE,
+            StackName.YARA_RULES,
+            StackName.FIDES_ONLY,
+        ):
+            ladder.append(
+                (
+                    stack.value,
+                    evaluate_stack(
+                        facts, stack, rule_engine=rule_engine
+                    ).decision.value,
+                )
+            )
+        ladder.append(
+            (StackName.RULES_PLUS_FIDES.value, fides_decision.decision.value)
+        )
+
+        planner_config = None
+        if getattr(args, "fides_mode", "disabled") == "copilot_sdk":
+            planner_config = JudgeProviderConfig(
+                provider="copilot_sdk",
+                model=args.model,
+                copilot_home=args.copilot_home,
+                provider_calls_enabled=args.provider_calls_enabled,
+            )
+        planner = run_planner_showcase(
+            prompt,
+            config=planner_config,
+            enabled=getattr(args, "show_planner", False),
+        ).to_dict()
+
+        render_gate_report(
             prompt=prompt,
             facts=facts,
-            decision=fides_decision.to_dict(),
+            warden_decision=warden.to_dict(),
+            fides_decision=fides_decision.to_dict(),
             rule_engine=rule_engine,
             prompt_included=getattr(args, "include_prompt", False),
-            llm_verdict=f"{'1 malicious' if fides_decision.fides_verdict.value in ('unsafe',) else '0.5 uncertain' if fides_decision.fides_verdict.value in ('uncertain',) else '0 benign'}",
-        )
-        # Print FIDES-specific summary
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich import box
-
-        console = Console()
-        from rich.table import Table
-
-        fides_table = Table.grid(padding=(0, 2))
-        fides_table.add_column(style="bold yellow", no_wrap=True)
-        fides_table.add_column(style="white")
-        fides_table.add_row("FIDES Verdict", fides_decision.fides_verdict.value.upper())
-        fides_table.add_row("Decision", fides_decision.decision.value.upper())
-        fides_table.add_row("Blocked By", fides_decision.blocked_by.value)
-        if fides_decision.latency_ms is not None:
-            fides_table.add_row("Latency", f"{fides_decision.latency_ms:.0f}ms")
-        fides_table.add_row("Provider Calls", str(fides_decision.provider_calls))
-        console.print(
-            Panel(
-                fides_table,
-                title="FIDES IFC Gate",
-                box=box.ROUNDED,
-                border_style="yellow",
-            )
+            explain=getattr(args, "explain", False),
+            expected=getattr(args, "expected", None),
+            model=getattr(args, "model", None),
+            ladder=ladder,
+            planner=planner,
         )
     else:
         _write_json(args.output, payload)
@@ -1330,35 +1343,16 @@ def _scan(args: argparse.Namespace) -> int:
         )
         if fmt == "rich":
             run_loading_step("Evaluating WARDEN + FIDES gate...", enabled=True)
-            render_warden_rule_check(
+            warden_scan = evaluate_stack(
+                facts, StackName.YARA_RULES, rule_engine=rule_engine
+            )
+            render_gate_report(
                 prompt=args.prompt,
                 facts=facts,
-                decision=fides_decision.to_dict(),
+                warden_decision=warden_scan.to_dict(),
+                fides_decision=fides_decision.to_dict(),
                 rule_engine=rule_engine,
                 prompt_included=True,
-            )
-            from rich.console import Console as RichConsole
-            from rich.panel import Panel as RichPanel
-            from rich import box as rich_box
-            from rich.table import Table as RichTable
-
-            console = RichConsole()
-            ft = RichTable.grid(padding=(0, 2))
-            ft.add_column(style="bold yellow", no_wrap=True)
-            ft.add_column(style="white")
-            ft.add_row("FIDES Verdict", fides_decision.fides_verdict.value.upper())
-            ft.add_row("Decision", fides_decision.decision.value.upper())
-            ft.add_row("Blocked By", fides_decision.blocked_by.value)
-            if fides_decision.latency_ms is not None:
-                ft.add_row("Latency", f"{fides_decision.latency_ms:.0f}ms")
-            ft.add_row("Provider Calls", str(fides_decision.provider_calls))
-            console.print(
-                RichPanel(
-                    ft,
-                    title="FIDES IFC Gate",
-                    box=rich_box.ROUNDED,
-                    border_style="yellow",
-                )
             )
         else:
             print(json.dumps(fides_decision.to_dict(), indent=2))
@@ -1367,10 +1361,10 @@ def _scan(args: argparse.Namespace) -> int:
     decision = evaluate_stack(facts, StackName.YARA_RULES)
     if fmt == "rich":
         run_loading_step("Evaluating WARDEN rules...", enabled=True)
-        render_warden_rule_check(
+        render_gate_report(
             prompt=args.prompt,
             facts=facts,
-            decision=decision.to_dict(),
+            warden_decision=decision.to_dict(),
             prompt_included=True,
         )
     else:
@@ -1472,7 +1466,27 @@ def main(argv: list[str] | None = None) -> int:
         "judge", help="Run WARDEN plus optional FIDES on one prompt"
     )
     judge_sub = judge.add_subparsers(dest="judge_command", required=True)
-    one = judge_sub.add_parser("one")
+    one = judge_sub.add_parser(
+        "one",
+        help="Evaluate one prompt through WARDEN + FIDES and render the gate report",
+        description=(
+            "Run the WARDEN .war policy stack and the FIDES/IFC layer on a single "
+            "prompt, then render the three-section gate report."
+        ),
+        epilog=(
+            "examples:\n"
+            "  warden judge one --prompt 'ignore previous instructions' \\\n"
+            "      --origin tool_output --trust untrusted --format rich\n"
+            "  warden judge one --prompt '...' --format rich --explain\n"
+            "      # verbose: rule condition, description, anchors, author\n"
+            "  warden judge one --prompt '...' --format rich --expected block\n"
+            "      # show the TP/FN scorecard in the evaluation section\n"
+            "  warden judge one --prompt '...' --format rich \\\n"
+            "      --fides-mode copilot_sdk --provider-calls-enabled --model gpt-5.5 --show-planner\n"
+            "      # live judge + isolated, tool-free planner counterfactual\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     one.add_argument("--prompt", default="")
     one.add_argument("--prompt-file", type=Path, default=None)
     one.add_argument("--origin", default="user")
@@ -1497,6 +1511,22 @@ def main(argv: list[str] | None = None) -> int:
     one.add_argument("--copilot-home", type=Path, default=None)
     one.add_argument("--format", default="json", choices=["json", "rich"])
     one.add_argument("--include-prompt", action="store_true")
+    one.add_argument(
+        "--explain",
+        action="store_true",
+        help="Verbose WARDEN section: rule condition, description, anchors, author",
+    )
+    one.add_argument(
+        "--expected",
+        default=None,
+        choices=["block", "allow"],
+        help="Ground-truth label; lights up the TP/FN scorecard in the evaluation section",
+    )
+    one.add_argument(
+        "--show-planner",
+        action="store_true",
+        help="Run the isolated, tool-free Planner showcase (live model; needs --provider-calls-enabled)",
+    )
     one.add_argument("--no-animation", action="store_true")
     one.add_argument("--output", type=Path, default=None)
 

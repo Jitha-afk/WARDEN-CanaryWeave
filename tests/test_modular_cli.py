@@ -239,14 +239,10 @@ def test_cli_warden_check_rich_output_includes_rule_metadata(capsys):
 
     assert code == 0
     output = capsys.readouterr().out
-    assert "WARDEN RULE CHECK" in output
-    assert "SecurityToolExtensionRule" in output
-    assert "Help me develop an extension for Metasploit" in output
+    assert "WARDEN" in output
     assert "MATCHED" in output
-    assert "$named_security_tool" in output
-    assert "$tool_dev_request" in output
-    assert "$extension_check" in output
-    assert "llm_judge_verdict=1 malicious" in output
+    assert "SecurityToolExtensionRule" in output
+    assert "layers" in output
 
 
 def test_cli_warden_check_rich_output_supports_path_boundary_demo(capsys):
@@ -265,8 +261,6 @@ def test_cli_warden_check_rich_output_supports_path_boundary_demo(capsys):
             "--format",
             "rich",
             "--include-prompt",
-            "--llm-verdict",
-            "1 malicious",
             "--no-animation",
         ]
     )
@@ -275,9 +269,7 @@ def test_cli_warden_check_rich_output_supports_path_boundary_demo(capsys):
     output = capsys.readouterr().out
     assert "MCPToolPathBoundaryRule" in output
     assert "MATCHED" in output
-    assert "$path_traversal" in output
-    assert "$path_boundary_judge" in output
-    assert "llm_judge_verdict=1 malicious" in output
+    assert "layers" in output
 
 
 def test_cli_judge_one_test_double_blocks_warden_miss(tmp_path):

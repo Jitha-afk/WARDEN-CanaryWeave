@@ -81,6 +81,21 @@ class CopilotSdkJudgeProvider:
             return _run_async(_copilot_judge(prompt, config=self.config))
         return _rest_judge(prompt, config=self.config)
 
+    def complete_planner(self, prompt: str) -> str:
+        """Planner-showcase completion — the unprotected Planner LLM.
+
+        A separate, isolated, tool-free call distinct from the quarantined judge:
+        it shows what a normal planner would do with the input. SDK-only; the
+        REST judge framing is not reused here.
+        """
+        if self._use_sdk is None:
+            self._use_sdk = self.import_available()
+        if not self._use_sdk:
+            raise RuntimeError(
+                "planner showcase requires github-copilot-sdk; REST fallback not supported"
+            )
+        return _run_async(_copilot_planner(prompt, config=self.config))
+
 
 def default_copilot_home() -> Path:
     return Path.home() / ".local" / "share" / "canaryweave-fides" / "copilot"
@@ -180,7 +195,20 @@ def _reject_permission_request(*args: Any, **kwargs: Any) -> Any:
         }
 
 
-async def _copilot_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
+_JUDGE_SYSTEM = (
+    "You are FIDES, a quarantined JSON-only security judge. Do not request tools."
+)
+_PLANNER_SYSTEM = (
+    "You are a general-purpose AI assistant responding to the message below. "
+    "Reply naturally and directly, as a normal assistant would. This is an "
+    "isolated security demonstration: you have no tools and can take no real "
+    "actions, so describe what you would do rather than doing it."
+)
+
+
+async def _copilot_complete(
+    prompt: str, *, config: JudgeProviderConfig, system_content: str
+) -> str:
     client = await _new_client(copilot_home=config.copilot_home)
     try:
         create = getattr(client, "create_session", None)
@@ -189,7 +217,7 @@ async def _copilot_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
         kwargs: dict[str, Any] = {
             "system_message": {
                 "mode": "append",
-                "content": "You are FIDES, a quarantined JSON-only security judge. Do not request tools.",
+                "content": system_content,
             },
             "available_tools": [],
             "on_permission_request": _reject_permission_request,
@@ -230,6 +258,18 @@ async def _copilot_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
         return _extract_text(response)
     finally:
         await _stop_client(client)
+
+
+async def _copilot_judge(prompt: str, *, config: JudgeProviderConfig) -> str:
+    return await _copilot_complete(
+        prompt, config=config, system_content=_JUDGE_SYSTEM
+    )
+
+
+async def _copilot_planner(prompt: str, *, config: JudgeProviderConfig) -> str:
+    return await _copilot_complete(
+        prompt, config=config, system_content=_PLANNER_SYSTEM
+    )
 
 
 # ---------------------------------------------------------------------------

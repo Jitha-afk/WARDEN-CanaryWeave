@@ -82,7 +82,10 @@ def test_disabled_rule_fides_keeps_default_allow_behavior():
     assert decision.rule_ids == ()
 
 
-def test_unsatisfied_deterministic_terms_do_not_attribute_rule_fides():
+def test_unsatisfied_deterministic_terms_do_not_call_judge():
+    # When deterministic terms are unsatisfied and no judge term can flip the
+    # condition to a hit, there is no pending question, so the Quarantined LLM
+    # judge is never called and nothing attributes to a rule (ADR 0004).
     facts = _facts(text="plain text")
     judge = StaticFidesJudge(
         {facts.case_id: FidesJudgeResult(verdict="unsafe", reason_codes=("case.path",))}
@@ -92,11 +95,11 @@ def test_unsatisfied_deterministic_terms_do_not_attribute_rule_fides():
         facts, StackName.RULES_PLUS_FIDES, fides_judge=judge, rule_engine=_engine()
     )
 
-    assert judge.calls == 1
-    assert decision.decision is Decision.BLOCK
-    assert decision.blocked_by is BlockedBy.FIDES_JUDGE
+    assert judge.calls == 0
+    assert decision.decision is Decision.ALLOW
+    assert decision.blocked_by is BlockedBy.NONE
+    assert decision.fides_verdict is FidesVerdict.NOT_CALLED
     assert decision.rule_ids == ()
-    assert decision.reason_codes == ("case.path",)
 
 
 def test_multiple_pending_rule_fides_checks_call_judge_once():

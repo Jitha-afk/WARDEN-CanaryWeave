@@ -8,6 +8,7 @@ from typing import Any, Iterable, Mapping, Protocol, Sequence
 from .cases import AttackCase
 from .decisions import BlockedBy, Decision, FidesVerdict, GateDecision, StackName
 from .facts import NormalizedFacts
+from .fides import FidesIFCLayer
 from .fides_prompt import build_fides_judge_prompt, parse_fides_judge_response
 from .models import PendingFidesCheck, PolicyContext, RuleDecision, TraceEvent
 from .providers import CopilotSdkJudgeProvider, JudgeProvider, JudgeProviderConfig
@@ -590,6 +591,157 @@ def evaluate_warden(
     return warden
 
 
+_STRUCTURAL_IFC_LAYER = FidesIFCLayer(enabled=True)
+
+
+def _structural_ifc_result(facts: NormalizedFacts):
+    """Evaluate the deterministic Structural IFC layer (always cheap, no provider)."""
+    trace, policy = _facts_to_trace_and_policy(facts)
+    return _STRUCTURAL_IFC_LAYER.evaluate(trace, policy)
+
+
+def _ifc_decision_from_result(ifc_result) -> Decision:
+    return Decision.BLOCK if ifc_result.blocks else Decision.ALLOW
+
+
+def _compose_layers(
+    warden_decision: Decision,
+    ifc_decision: Decision,
+    judge_decision: Decision | None,
+) -> tuple[Decision, str]:
+    """Compose layer verdicts most-restrictively; attribute the owning layer.
+
+    Attribution tie-breaks in deterministic-first order: WARDEN rule, then
+    Structural IFC, then Semantic Judge.
+    """
+    candidates: list[tuple[Decision, str]] = [
+        (warden_decision, "warden"),
+        (ifc_decision, "ifc"),
+    ]
+    if judge_decision is not None:
+        candidates.append((judge_decision, "judge"))
+    final = warden_decision
+    for decision, _owner in candidates[1:]:
+        final = _more_restrictive_decision(final, decision)
+    if final == Decision.ALLOW:
+        return final, "none"
+    target_rank = _decision_rank(final)
+    for decision, owner in candidates:
+        if _decision_rank(decision) == target_rank:
+            return final, owner
+    return final, "none"
+
+
+def _evaluate_fides_only(facts: NormalizedFacts) -> GateDecision:
+    """`fides_only` stack: Structural IFC alone, WARDEN skipped."""
+    ifc_result = _structural_ifc_result(facts)
+    decision = _ifc_decision_from_result(ifc_result)
+    blocked = decision != Decision.ALLOW
+    reason_codes = (
+        tuple(f"fides.ifc.{check}" for check in ifc_result.policy_checks)
+        if blocked
+        else ()
+    )
+    return GateDecision(
+        stack=StackName.FIDES_ONLY,
+        decision=decision,
+        blocked_by=BlockedBy.FIDES_IFC if blocked else BlockedBy.NONE,
+        reason_codes=reason_codes,
+        ifc_verdict=ifc_result.verdict,
+        ifc_policy_checks=ifc_result.policy_checks,
+    )
+
+
+def _evaluate_rules_plus_fides(
+    facts: NormalizedFacts,
+    *,
+    fides_judge: "FidesJudge | None",
+    rule_engine: RuleEngine | None,
+) -> GateDecision:
+    """`rules_plus_fides`: WARDEN + always-on Structural IFC + escalation judge.
+
+    Both deterministic layers are always computed and recorded; the gate decision
+    is the most-restrictive composition. The Semantic Judge (Quarantined LLM)
+    fires only when WARDEN missed deterministically, IFC allowed, and a rule left
+    a pending ``judge:`` question.
+    """
+    warden, rule_decision = _evaluate_warden_with_rule_decision(
+        facts, StackName.RULES_PLUS_FIDES, rule_engine=rule_engine
+    )
+    warden_decision = Decision.coerce(warden.decision)
+
+    ifc_result = _structural_ifc_result(facts)
+    ifc_decision = _ifc_decision_from_result(ifc_result)
+    ifc_verdict = FidesVerdict.coerce(ifc_result.verdict)
+
+    pending_checks = _serialized_pending_fides_checks(rule_decision.pending_fides)
+    judge_decision: Decision | None = None
+    judge_verdict: FidesVerdict | str = FidesVerdict.NOT_CALLED
+    judge_reason_codes: tuple[str, ...] = ()
+    judge_verdict_reason_codes: tuple[str, ...] = ()
+    judge_rule_ids: tuple[str, ...] = ()
+    latency_ms = warden.latency_ms
+    provider_calls = 0
+    if (
+        warden_decision == Decision.ALLOW
+        and ifc_decision == Decision.ALLOW
+        and pending_checks
+    ):
+        judge = fides_judge or DisabledFidesJudge()
+        verdict = judge.judge(facts, rule_fides_checks=pending_checks)
+        judge_verdict = FidesVerdict.coerce(verdict.verdict)
+        judge_decision = _more_restrictive_decision(
+            _recommended_decision_for_verdict(judge_verdict),
+            Decision.coerce(verdict.recommended_decision),
+        )
+        judge_rule_ids = _unique_strings(
+            item.rule_id for item in rule_decision.pending_fides
+        )
+        judge_verdict_reason_codes = tuple(str(code) for code in verdict.reason_codes)
+        judge_reason_codes = _unique_strings(
+            (
+                *verdict.reason_codes,
+                *(str(check["name"]) for check in pending_checks),
+            )
+        )
+        latency_ms = verdict.latency_ms
+        provider_calls = verdict.provider_calls
+
+    final_decision, owner = _compose_layers(
+        warden_decision, ifc_decision, judge_decision
+    )
+
+    blocked_by = BlockedBy.NONE
+    rule_ids: tuple[str, ...] = ()
+    reason_codes: tuple[str, ...] = ()
+    if owner == "warden":
+        blocked_by = BlockedBy.coerce(warden.blocked_by)
+        rule_ids = warden.rule_ids
+        reason_codes = warden.reason_codes
+    elif owner == "ifc":
+        blocked_by = BlockedBy.FIDES_IFC
+        reason_codes = tuple(f"fides.ifc.{check}" for check in ifc_result.policy_checks)
+    elif owner == "judge":
+        blocked_by = BlockedBy.FIDES_JUDGE
+        rule_ids = judge_rule_ids
+        reason_codes = judge_reason_codes
+    else:
+        reason_codes = judge_verdict_reason_codes
+
+    return GateDecision(
+        stack=StackName.RULES_PLUS_FIDES,
+        decision=final_decision,
+        blocked_by=blocked_by,
+        rule_ids=rule_ids,
+        fides_verdict=judge_verdict,
+        reason_codes=reason_codes,
+        latency_ms=latency_ms,
+        provider_calls=provider_calls,
+        ifc_verdict=ifc_verdict,
+        ifc_policy_checks=ifc_result.policy_checks,
+    )
+
+
 def evaluate_stack(
     facts: NormalizedFacts,
     stack: StackName | str,
@@ -603,72 +755,11 @@ def evaluate_stack(
         return evaluate_regex_baseline(facts)
     if stack_name == StackName.YARA_RULES:
         return evaluate_warden(facts, StackName.YARA_RULES, rule_engine=rule_engine)
+    if stack_name == StackName.FIDES_ONLY:
+        return _evaluate_fides_only(facts)
     if stack_name == StackName.RULES_PLUS_FIDES:
-        warden, rule_decision = _evaluate_warden_with_rule_decision(
-            facts,
-            StackName.RULES_PLUS_FIDES,
-            rule_engine=rule_engine,
-        )
-        if warden.decision != Decision.ALLOW:
-            return GateDecision(
-                stack=StackName.RULES_PLUS_FIDES,
-                decision=warden.decision,
-                blocked_by=warden.blocked_by,
-                rule_ids=warden.rule_ids,
-                fides_verdict=FidesVerdict.NOT_CALLED,
-                reason_codes=warden.reason_codes,
-                latency_ms=warden.latency_ms,
-                provider_calls=0,
-            )
-        judge = fides_judge or DisabledFidesJudge()
-        pending_checks = _serialized_pending_fides_checks(rule_decision.pending_fides)
-        verdict = judge.judge(facts, rule_fides_checks=pending_checks)
-        effective_decision = _more_restrictive_decision(
-            _recommended_decision_for_verdict(FidesVerdict.coerce(verdict.verdict)),
-            Decision.coerce(verdict.recommended_decision),
-        )
-        attributed_rule_ids = _unique_strings(
-            item.rule_id for item in rule_decision.pending_fides
-        )
-        attributed_reason_codes = (
-            _unique_strings(
-                (
-                    *verdict.reason_codes,
-                    *(str(check["name"]) for check in pending_checks),
-                )
-            )
-            if pending_checks
-            else verdict.reason_codes
-        )
-        if effective_decision == Decision.BLOCK:
-            return GateDecision(
-                stack=StackName.RULES_PLUS_FIDES,
-                decision=Decision.BLOCK,
-                blocked_by=BlockedBy.FIDES_JUDGE,
-                rule_ids=attributed_rule_ids,
-                fides_verdict=verdict.verdict,
-                reason_codes=attributed_reason_codes,
-                latency_ms=verdict.latency_ms,
-                provider_calls=verdict.provider_calls,
-            )
-        if effective_decision == Decision.QUARANTINE:
-            return GateDecision(
-                stack=StackName.RULES_PLUS_FIDES,
-                decision=Decision.QUARANTINE,
-                blocked_by=BlockedBy.FIDES_JUDGE,
-                rule_ids=attributed_rule_ids,
-                fides_verdict=verdict.verdict,
-                reason_codes=attributed_reason_codes,
-                latency_ms=verdict.latency_ms,
-                provider_calls=verdict.provider_calls,
-            )
-        return GateDecision(
-            stack=StackName.RULES_PLUS_FIDES,
-            decision=Decision.ALLOW,
-            fides_verdict=verdict.verdict,
-            reason_codes=verdict.reason_codes,
-            latency_ms=verdict.latency_ms,
-            provider_calls=verdict.provider_calls,
+        return _evaluate_rules_plus_fides(
+            facts, fides_judge=fides_judge, rule_engine=rule_engine
         )
     raise ValueError(f"unsupported stack: {stack}")
 
